@@ -1,0 +1,12 @@
+<?php
+	// wmem: 16 a b
+	//   write the value from <b> into memory at address <a>
+	class Synacor_wmem implements SynacorOP {
+		function args() { return 2; }
+		function run($vm, $data) {
+			list($a, $b) = $data;
+
+			$vm->setData($vm->get($a), $vm->get($b));
+		}
+		function code() { return 16; }
+	}
