@@ -5,8 +5,10 @@
 		function args() { return 2; }
 		function run($vm, $data) {
 			list($a, $b) = $data;
+			$vm->decode($a);
+			$vm->decode($b);
 
-			$vm->setData($vm->get($a), $vm->get($b));
+			$vm->setData($a, $b);
 		}
 		function code() { return 16; }
 	}

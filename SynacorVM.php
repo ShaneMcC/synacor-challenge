@@ -17,19 +17,13 @@
 		private $location = 0;
 
 		/** Register Values. */
-		private $reg = [0, 0, 0, 0, 0, 0, 0, 0];
+		private $reg;
 
 		/** Stack. */
 		private $stack = [];
 
 		/** Known Operations */
 		private $ops = [];
-
-		/** Debug data. */
-		private $debug = [];
-
-		/** Debugging enabled? */
-		private $debugging = false;
 
 		/** Run return value */
 		private $returnValue = 0;
@@ -50,45 +44,35 @@
 					$this->ops[$c->code()] = $c;
 				}
 			}
+
+			// Prepare data structures
+			$this->reg = new SplFixedArray(8);
+			for ($i=0; $i < 8; $i++) { $this->reg[$i] = 0; }
 		}
 
 		/**
 		 * Run the Program.
 		 *
-		 * @param $debugging Output debugging on exit?
 		 * @return Return code from app (1 or 0)
 		 */
-		public function run($debugging = false) {
-			$this->debugging = $debugging;
-
+		public function run() {
 			if ($this->getLocation() != 0) { return -1; }
 
-			while (($op = $this->getNext(1)) !== FALSE) {
+			while (true) {
 				$loc = $this->getLocation();
+				$op = $this->getNext(1);
+				if ($op === false) { break; }
 				$op = $op[0];
+
 				if (!isset($this->ops[$op])) {
 					$this->haltvm('BAD OP: ' . $op);
 				} else {
 					$data = $this->getNext($this->ops[$op]->args());
-					$this->debug(sprintf('%d %s (%s)', $loc - 1, get_class($this->ops[$op]), @implode(' ', $data)));
-					$this->debug(sprintf('          Before: [%s] {%s}', @implode('|', $this->reg), @implode('<-', $this->stack)));
 					$this->ops[$op]->run($this, $data);
-					$this->debug(sprintf('           After: [%s] {%s}', @implode('|', $this->reg), @implode('<-', $this->stack)));
-					$this->debug();
 				}
 			}
 
 			return $this->returnValue;
-		}
-
-		/**
-		 * Store some debug information.
-		 *
-		 * @param $data Data to store.
-		 */
-		public function debug($data = '') {
-			$this->debug[] = $data;
-			echo $data, "\n";
 		}
 
 		/**
@@ -104,11 +88,31 @@
 			for ($i = 0; $i < $count; $i++) {
 				if ($this->location == -1) { return FALSE; }
 				$val = isset($this->data[$this->location]) ? $this->data[$this->location] : FALSE;
+
 				$result[] = $val;
 				$this->location++;
 			}
 
 			return empty($result) ? FALSE : $result;
+		}
+
+		public function decode(&$input) {
+			if ($this->isRegister($input)) {
+				$this->asRegister($input);
+				$input = $this->get($input);
+			}
+		}
+
+		public function asRegister(&$input) {
+			if ($this->isRegister($input)) {
+				$input = $input - 32768;
+			} else {
+				$this->haltvm('Not a register.');
+			}
+		}
+
+		public function isRegister($input) {
+			return ($input >= 32768 && $input < 32776);
 		}
 
 		/**
@@ -118,8 +122,7 @@
 		 * @return The item added.
 		 */
 		public function push($item) {
-			$this->debug('      pushed: '.$item);
-			array_push($this->stack, $item);
+			$this->stack[] = $item;
 			return $item;
 		}
 
@@ -130,7 +133,6 @@
 		 */
 		public function pop() {
 			$item = array_pop($this->stack);
-			$this->debug('      popped: '.$item);
 			return $item;
 		}
 
@@ -146,13 +148,11 @@
 		/**
 		 * Set the register to the given value.
 		 *
-		 * @param $reg Register address (32768 .. 32775)
+		 * @param $reg Register address
 		 * @param $val Value to set.
 		 */
 		public function set($reg, $val) {
-			if ($reg < 32768) { $this->haltvm('Bad Set'); }
-			$this->debug('      Set: '.$reg.' to: '.$val);
-			$this->reg[$reg - 32768] = $val;
+			$this->reg[$reg] = $val;
 		}
 
 		/**
@@ -160,12 +160,11 @@
 		 * If value is a non-register address, then the raw value will
 		 * be returned.
 		 *
-		 * @param $reg Register address (32768 .. 32775)
+		 * @param $reg Register address
 		 * @return Register value.
 		 */
 		public function get($reg) {
-			$result = ($reg < 32768) ? $reg : $this->reg[$reg - 32768];
-			$this->debug('      Get: '.$reg.' as: '.$result);
+			$result = $this->reg[$reg];
 			return (int)$result;
 		}
 
@@ -176,7 +175,6 @@
 		 * @param $val Value to set.
 		 */
 		public function setData($loc, $val) {
-			$this->debug('      SetData: '.$loc.' as: '.$val);
 			$this->data[$loc] = $val;
 		}
 
@@ -187,7 +185,6 @@
 		 * @return Value of Location.
 		 */
 		public function getData($loc) {
-			$this->debug('      getData: '.$loc.' is: '.$this->data[$loc]);
 			return (int)$this->data[$loc];
 		}
 
@@ -218,10 +215,6 @@
 		 */
 		public function haltvm($reason, $code = 1) {
 			echo '#### EXITED: ', $reason, "\n";
-			if ($this->debugging) {
-				echo implode("\n", $this->debug), "\n";
-				echo '#### EXITED: ', $reason, "\n";
-			}
 			$this->returnValue = $code;
 			$this->jump(-1);
 		}

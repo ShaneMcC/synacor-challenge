@@ -6,7 +6,7 @@
 		function run($vm, $data) {
 			$v = $vm->pop();
 			if ($v === null) { $vm->haltvm('Empty Stack for Ret'); }
-			$vm->jump($vm->get($v));
+			$vm->jump($v);
 		}
 		function code() { return 18; }
 	}

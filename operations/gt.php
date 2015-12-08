@@ -5,10 +5,11 @@
 		function args() { return 3; }
 		function run($vm, $data) {
 			list($a, $b, $c) = $data;
+			$vm->asRegister($a);
+			$vm->decode($b);
+			$vm->decode($c);
 
-			$vm->debug('      GT: ' . $vm->get($b) . ' > ' . $vm->get($c));
-
-			$vm->set($a, $vm->get($b) > $vm->get($c) ? '1' : '0');
+			$vm->set($a, $b > $c ? '1' : '0');
 		}
 		function code() { return 5; }
 	}

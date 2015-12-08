@@ -5,6 +5,7 @@
 		function args() { return 1; }
 		function run($vm, $data) {
 			list($a) = $data;
+			$vm->decode($a);
 			echo chr($a);
 		}
 		function code() { return 19; }

@@ -8,7 +8,16 @@
 		function args() { return 1; }
 		function run($vm, $data) {
 			list($a) = $data;
-			$vm->haltvm('Wanted user input...');
+
+			$in = ord(fread(STDIN, 1));
+
+			if ($vm->isRegister($a)) {
+				$vm->asRegister($a);
+				$vm->set($a, $in);
+			} else {
+				$vm->decode($a);
+				$vm->setData($a, $in);
+			}
 		}
 		function code() { return 20; }
 	}

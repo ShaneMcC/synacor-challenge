@@ -5,7 +5,9 @@
 		function args() { return 1; }
 		function run($vm, $data) {
 			list($a) = $data;
-			$vm->push($vm->get($a));
+			$vm->decode($a);
+
+			$vm->push($a);
 		}
 		function code() { return 2; }
 	}

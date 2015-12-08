@@ -5,9 +5,11 @@
 		function args() { return 1; }
 		function run($vm, $data) {
 			list($a) = $data;
+			$vm->asRegister($a);
+
 			$v = $vm->pop();
 			if ($v === null) { $vm->haltvm('Bad Pop'); }
-			$vm->set($a, $vm->get($v));
+			$vm->set($a, $v);
 		}
 		function code() { return 3; }
 	}

@@ -5,8 +5,11 @@
 		function args() { return 2; }
 		function run($vm, $data) {
 			list($a, $b) = $data;
-			if ($vm->get($a) === 0) {
-				$vm->jump($vm->get($b));
+			$vm->decode($a);
+			$vm->decode($b);
+
+			if ($a === 0) {
+				$vm->jump($b);
 			}
 		}
 		function code() { return 8; }

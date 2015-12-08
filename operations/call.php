@@ -5,8 +5,10 @@
 		function args() { return 1; }
 		function run($vm, $data) {
 			list($a) = $data;
+			$vm->decode($a);
+
 			$vm->push($vm->getLocation());
-			$vm->jump($vm->get($a));
+			$vm->jump($a);
 		}
 		function code() { return 17; }
 	}

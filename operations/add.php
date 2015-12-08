@@ -5,8 +5,11 @@
 		function args() { return 3; }
 		function run($vm, $data) {
 			list($a, $b, $c) = $data;
+			$vm->asRegister($a);
+			$vm->decode($b);
+			$vm->decode($c);
 
-			$vm->set($a, ($vm->get($b) + $vm->get($c)) % 32768);
+			$vm->set($a, ($b + $c) % 32768);
 		}
 		function code() { return 9; }
 	}
