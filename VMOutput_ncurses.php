@@ -87,10 +87,19 @@
 		}
 
 		public function addOutput($output) {
-			if ($output == 10) {
+			if (is_array($output)) {
+				foreach ($output as $out) {
+					$this->outputData[] = $out;
+				}
 				$this->outputData[] = '';
 			} else {
-				$this->outputData[count($this->outputData) - 1] .= chr($output);
+				if ($output === 10) {
+					$this->outputData[] = '';
+				} else if (is_integer($output)) {
+					$this->outputData[count($this->outputData) - 1] .= chr($output);
+				} else {
+					$this->outputData[count($this->outputData) - 1] .= $output;
+				}
 			}
 			$this->redrawAll();
 			$this->refreshAll();
@@ -224,7 +233,20 @@
 				$this->userInput = '';
 				$this->inputTitle = '';
 				$this->redrawInput();
-				$result = $this->handlers['gotInput']($this, $this->vm, $in);
+
+				try {
+					$result = $this->handlers['gotInput']($this, $this->vm, $in);
+				} catch (Exception $e) {
+					$this->outputData[] = '==========';
+					$this->outputData[] = 'Caught Exception: ' . $e->getMessage();
+					$this->outputData[] = '';
+					foreach (explode("\n", $e->getTraceAsString()) as $t) {
+						$this->outputData[] = $t;
+					}
+					$this->outputData[] = '==========';
+					$this->outputData[] = '';
+					$result = true;
+				}
 			} else if ($pressed == 263) { // Backspace
 				$this->userInput = substr($this->userInput, 0, -1);
 				$result = true;

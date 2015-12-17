@@ -40,9 +40,6 @@
 		 * @param $binaryData Program data.
 		 */
 		public function __construct($binaryData) {
-			// Load the application into memory.
-			$this->data = array_values(unpack('v*', $binaryData));
-
 			// Load the operations.
 			foreach (get_declared_classes() as $class) {
 				if (is_subclass_of($class, 'SynacorOP')) {
@@ -51,14 +48,33 @@
 				}
 			}
 
-			// Prepare data structures
-			$this->reg = new SplFixedArray(8);
-			for ($i=0; $i < 8; $i++) { $this->reg[$i] = 0; }
-
 			// Prepare default functions.
 			$this->handlers['output'] = function ($vm, $out) { echo chr($out); };
 			$this->handlers['input'] = function ($vm) { return ord(fread(STDIN, 1)); };
 			$this->handlers['trace'] = function ($vm, $loc, $op, $data) { };
+
+			// Load the data.
+			$this->load($binaryData);
+		}
+
+		/**
+		 * Load the VM with the the given binary data.
+		 *
+		 * @param $binaryData Program data.
+		 */
+		public function load($binaryData) {
+			// Load the application into memory.
+			$this->data = array_values(unpack('v*', $binaryData));
+
+			// Prepare data structures
+			$this->reg = new SplFixedArray(8);
+			for ($i=0; $i < 8; $i++) { $this->reg[$i] = 0; }
+
+			// Init state.
+			$this->stack = array();
+			$this->breakPoints = array();
+			$this->location = 0;
+			$this->returnValue = 0;
 		}
 
 		/**
@@ -177,6 +193,33 @@
 					}
 				}
 			}
+
+			return true;
+		}
+
+		/**
+		 * Dump memory from $start to $end through the dump handler as a series
+		 * of commands (without executing them)
+		 *
+		 * @param $start Where to start.
+		 * @param $end Where to end (if $loc is greater/equal than this, and end is not 0)
+		 */
+		public function dump($start = 0, $end = 0) {
+			$current = $this->getLocation();
+			$this->jump($start);
+			while (true) {
+				$loc = $this->getLocation();
+				if ($end != 0 && $loc >= $end) { break; }
+				$op = $this->getNext(1);
+				if ($op === false) { break; }
+				$op = $op[0];
+
+				if (isset($this->ops[$op])) {
+					$data = $this->getNext($this->ops[$op]->args());
+					$this->handlers['dump']($this, $loc, $this->ops[$op], $data);
+				}
+			}
+			$this->jump($current);
 
 			return true;
 		}
@@ -366,7 +409,10 @@
 		 * @param $code Exit Code (default: 1)
 		 */
 		public function haltvm($reason, $code = 1) {
-			echo '#### EXITED: ', $reason, "\n";
+			$message = '#### EXITED: ' . $reason . "\n";
+			foreach (str_split($message) as $m) {
+				$this->handlers['output']($this, ord($m));
+			}
 			$this->returnValue = $code;
 			$this->jump(-1);
 		}
