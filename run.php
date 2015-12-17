@@ -2,8 +2,28 @@
 	require_once(dirname(__FILE__) . '/SynacorVM.php');
 	require_once(dirname(__FILE__) . '/VMOutput_ncurses.php');
 
+
+	// Parse command line.
+	try {
+		$__CLIOPTS = @getopt("hr", array('help', 'file:', 'state:', 'input:', 'log:', 'trace:', 'run'));
+		if (isset($__CLIOPTS['h']) || isset($__CLIOPTS['help'])) {
+			echo 'Usage: ', $_SERVER['argv'][0], ' [options]', "\n";
+			echo '', "\n";
+			echo 'Valid options', "\n";
+			echo '  -h, --help               Show this help output', "\n";
+			echo '      --file <file>        Use <file> for the binary file rather than "challenge.bin"', "\n";
+			echo '      --state <file>       Preload State from <file>', "\n";
+			echo '      --input <file>       Preload Input from <file>', "\n";
+			echo '      --log <file>         Log all output to <file>', "\n";
+			echo '      --trace <file>       Log all trace to <file>', "\n";
+			echo '  -r, --run                Auto run', "\n";
+			die();
+		}
+	} catch (Exception $e) { /* Do nothing. */ }
+
 	// Load in the binary for the challenge
-	$binaryData = file_get_contents(dirname(__FILE__) . '/challenge.bin');
+	$binaryFile = isset($__CLIOPTS['file']) && file_exists($__CLIOPTS['file']) ? $__CLIOPTS['file'] : dirname(__FILE__) . '/challenge.bin';
+	$binaryData = file_get_contents($binaryFile);
 
 	// Start a VM
 	$vm = new SynacorVM($binaryData);
@@ -28,7 +48,7 @@
 			// Run Last Command
 			// ========================================
 			if ($bits[0] == '') {
-				$out->inputTitle('RUN LAST');
+				$out->inputTitle('RUN LAST (Not implemented)');
 
 			// ========================================
 			// Run/Trace through the byte code until input is requested.
@@ -88,7 +108,7 @@
 			// Set register X to Y
 			// ========================================
 			} else if ($bits[0] == 'setreg' && isset($bits[2])) {
-				$vm->set((int)$bits[1], (int)$bits[2]);
+				$vm->set((int)$bits[1] - 1, (int)$bits[2]);
 				$out->inputTitle('SETREG ' . $bits[1] . ': ' . $bits[2]);
 
 			// ========================================
@@ -151,6 +171,11 @@
 	 */
 	$vmHandlers['output'] = function ($vm, $output) use ($out) {
 		$out->addOutput($output);
+
+		global $__CLIOPTS;
+		if (isset($__CLIOPTS['log'])) {
+			file_put_contents($__CLIOPTS['log'], chr($output), FILE_APPEND | LOCK_EX);
+		}
 	};
 
 	/**
@@ -179,7 +204,14 @@
 				}
 				$d =  implode(', ', $d);
 			} else { $d = $data; }
-			$out->addTrace(sprintf("%8d | %6s %s", $loc, $op->name(), $d));
+
+			$trace = sprintf("%8d | %6s %s", $loc, $op->name(), $d);
+			$out->addTrace($trace);
+
+			global $__CLIOPTS;
+			if (isset($__CLIOPTS['trace'])) {
+				file_put_contents($__CLIOPTS['trace'], $trace."\n", FILE_APPEND | LOCK_EX);
+			}
 		}
 	};
 
@@ -217,6 +249,18 @@
 
 	// Set the VM handlers.
 	$vm->setHandlers($vmHandlers);
+
+	if (isset($__CLIOPTS['state']) && file_exists($__CLIOPTS['state'])) {
+		$outHandlers['gotInput']($out, $vm, '!load ' . $__CLIOPTS['state']);
+	}
+
+	if (isset($__CLIOPTS['input']) && file_exists($__CLIOPTS['input'])) {
+		$outHandlers['gotInput']($out, $vm, '!in ' . $__CLIOPTS['input']);
+	}
+
+	if (isset($__CLIOPTS['r']) || isset($__CLIOPTS['run'])) {
+		$outHandlers['gotInput']($out, $vm, '!run');
+	}
 
 	// Begin the UI Loop!
 	$out->loop();
