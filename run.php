@@ -52,14 +52,16 @@
 
 			// ========================================
 			// Run/Trace through the byte code until input is requested.
-			// Trace will output all the executed operations.
+			// Trace will output all the executed operations any time we output anything
+			// TraceAll will output all the executed operations as they are executed.
 			// ========================================
-			} else if ($bits[0] == 'run' || $bits[0] == 'trace') {
+			} else if ($bits[0] == 'run' || $bits[0] == 'trace' || $bits[0] == 'traceall') {
 				if ($input != 'trace') { $out->traceOff(); }
+				if ($input == 'traceall') { $out->traceAll(); }
 				$out->inputTitle(strtoupper($input));
 				$result = $vm->run();
 				$out->inputTitle(strtoupper($input) . ' [' . $result . ']');
-				$out->traceOn();
+				$out->traceOnOutput();
 
 			// ========================================
 			// Halt the VM.
@@ -78,10 +80,13 @@
 
 			// ========================================
 			// Step forward through the code X steps
+			// StepAll shows all the trace steps not just on output.
 			// ========================================
-			} else if ($bits[0] == 'step' && isset($bits[1])) {
+			} else if (($bits[0] == 'step' || $bits[0] == 'stepall') && isset($bits[1])) {
 				$out->inputTitle('STEP ' . $bits[1]);
+				if ($input == 'stepall') { $out->traceAll(); }
 				$vm->step($bits[1]);
+				$out->traceOnOutput();
 
 			// ========================================
 			// Jump to X

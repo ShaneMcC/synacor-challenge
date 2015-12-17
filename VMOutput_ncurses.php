@@ -13,6 +13,7 @@
 		private $outputData = array('');
 		private $traceData = array();
 		private $tracing = true;
+		private $traceOnOutput = true;
 
 		function __construct($vm) {
 			// Init Display
@@ -119,14 +120,26 @@
 			$this->tracing = false;
 		}
 
+		public function traceAll() {
+			$this->traceOn();
+			$this->traceOnOutput = false;
+		}
+
+		public function traceOnOutput() {
+			$this->traceOn();
+			$this->traceOnOutput = true;
+		}
+
 		public function tracing() {
 			return $this->tracing;
 		}
 
 		public function addTrace($output) {
 			$this->traceData[] = $output;
-			// $this->redrawAll();
-			// $this->refreshAll();
+			if (!$this->traceOnOutput) {
+				$this->redrawAll();
+				$this->refreshAll();
+			}
 		}
 
 		public function redrawTrace() {
