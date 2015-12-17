@@ -66,6 +66,10 @@
 			$this->handlers = $outHandlers;
 		}
 
+		public function getHandlers() {
+			return $this->handlers;
+		}
+
 		public function redrawAll() {
 			$this->redrawDebug();
 			$this->redrawOutput();

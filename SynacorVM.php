@@ -31,6 +31,9 @@
 		/** I/O handlers. */
 		private $handlers = array();
 
+		/** Break Points */
+		private $breakPoints = array();
+
 		/**
 		 * Create a new Synacor VM to run the given binary data.
 		 *
@@ -72,6 +75,15 @@
 		}
 
 		/**
+		 * Get the current I/O handlers.
+		 *
+		 * @return Array of handlers.
+		 */
+		public function getHandlers() {
+			return $this->handlers[$type];
+		}
+
+		/**
 		 * Call the output function.
 		 *
 		 * @param $output Output to pass to function.
@@ -90,6 +102,31 @@
 		}
 
 		/**
+		 * Add a break point
+		 *
+		 * @param $break Break Point
+		 */
+		public function addBreak($break) {
+			$this->breakPoints[$break] = true;
+		}
+
+		/**
+		 * Remove a break point
+		 *
+		 * @param $break Break Point
+		 */
+		public function delBreak($break) {
+			unset($this->breakPoints[$break]);
+		}
+
+		/**
+		 * Clear all break points
+		 */
+		public function clearBreak() {
+			$this->breakPoints = array();
+		}
+
+		/**
 		 * Run the Program.
 		 *
 		 * @return Return code from app (1 or 0)
@@ -100,12 +137,18 @@
 			return $this->returnValue;
 		}
 
+
 		/**
 		 * Step through $count calls.
 		 *
 		 * @param $count How far to step.
 		 */
 		public function step($count = 1) {
+			$ignoreBreak = false;
+			if ($count == 0) {
+				$count = 1;
+				$ignoreBreak = true;
+			}
 			for ($steps = 0; $steps < $count; $steps++) {
 				$loc = $this->getLocation();
 				$op = $this->getNext(1);
@@ -117,11 +160,17 @@
 					return false;
 				} else {
 					$data = $this->getNext($this->ops[$op]->args());
-					$this->handlers['trace']($this, $loc, $this->ops[$op], $data);
-					$result = $this->ops[$op]->run($this, $data);
+					$breaking = (!$ignoreBreak && isset($this->breakPoints[$loc]));
+					$this->handlers['trace']($this, $loc, $this->ops[$op], $data, $breaking);
+					if ($breaking) {
+						$result = FALSE;
+					} else {
+						$result = $this->ops[$op]->run($this, $data);
+					}
 
 					// INPUT can return false to let us hand back to
-					// the display.
+					// the display, or we could have hit a break point that we
+					// weren't skipping over.
 					if ($result === FALSE) {
 						$this->jump($loc);
 						return FALSE;

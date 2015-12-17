@@ -40,15 +40,20 @@
 	 * @return False to abort VM, else true to continue.
 	 */
 	$outHandlers['gotInput'] = function ($out, $vm, $input) {
+		global $__LASTINPUT;
+
 		if (substr($input, 0, 1) == '!') {
-			$input = substr($input, 1);
-			$bits = explode(' ', $input);
+			$bits = explode(' ', substr($input, 1));
 
 			// ========================================
 			// Run Last Command
 			// ========================================
-			if ($bits[0] == '') {
-				$out->inputTitle('RUN LAST (Not implemented)');
+			if ($bits[0] == '' || $bits[0] == '!') {
+				$out->inputTitle('RUN LAST');
+				if (isset($__LASTINPUT) && !empty($__LASTINPUT)) {
+					$h = $out->getHandlers();
+					$h['gotInput']($out, $vm, $__LASTINPUT);
+				}
 
 			// ========================================
 			// Run/Trace through the byte code until input is requested.
@@ -56,11 +61,11 @@
 			// TraceAll will output all the executed operations as they are executed.
 			// ========================================
 			} else if ($bits[0] == 'run' || $bits[0] == 'trace' || $bits[0] == 'traceall') {
-				if ($input != 'trace') { $out->traceOff(); }
-				if ($input == 'traceall') { $out->traceAll(); }
-				$out->inputTitle(strtoupper($input));
+				if ($bits[0] != 'trace') { $out->traceOff(); }
+				if ($bits[0] == 'traceall') { $out->traceAll(); }
+				$out->inputTitle(strtoupper($bits[0]));
 				$result = $vm->run();
-				$out->inputTitle(strtoupper($input) . ' [' . $result . ']');
+				$out->inputTitle(strtoupper($bits[0]) . ' [' . $result . ']');
 				$out->traceOnOutput();
 
 			// ========================================
@@ -84,7 +89,7 @@
 			// ========================================
 			} else if (($bits[0] == 'step' || $bits[0] == 'stepall') && isset($bits[1])) {
 				$out->inputTitle('STEP ' . $bits[1]);
-				if ($input == 'stepall') { $out->traceAll(); }
+				if ($bits[0] == 'stepall') { $out->traceAll(); }
 				$vm->step($bits[1]);
 				$out->traceOnOutput();
 
@@ -94,6 +99,34 @@
 			} else if ($bits[0] == 'jump' && isset($bits[1])) {
 				$out->inputTitle('JUMP ' . $bits[1]);
 				$vm->jump($bits[1]);
+
+			// ========================================
+			// Add breakpoint at X
+			// ========================================
+			} else if ($bits[0] == 'break' && isset($bits[1])) {
+				$out->inputTitle('BREAK ' . $bits[1]);
+				$vm->addBreak($bits[1]);
+
+			// ========================================
+			// Remove breakpoint at X
+			// ========================================
+			} else if ($bits[0] == 'unbreak' && isset($bits[1])) {
+				$out->inputTitle('UNBREAK ' . $bits[1]);
+				$vm->delBreak($bits[1]);
+
+			// ========================================
+			// Clear break points
+			// ========================================
+			} else if ($bits[0] == 'nobreak') {
+				$out->inputTitle('NOBREAK');
+				$vm->clearBreak();
+
+			// ========================================
+			// Continue after breakpoint.
+			// ========================================
+			} else if ($bits[0] == 'continue') {
+				$out->inputTitle('CONTINUE');
+				$vm->step(0);
 
 			// ========================================
 			// Get the memory at position X
@@ -115,6 +148,20 @@
 			} else if ($bits[0] == 'setreg' && isset($bits[2])) {
 				$vm->set((int)$bits[1] - 1, (int)$bits[2]);
 				$out->inputTitle('SETREG ' . $bits[1] . ': ' . $bits[2]);
+
+			// ========================================
+			// Push X onto the stack
+			// ========================================
+			} else if ($bits[0] == 'push' && isset($bits[1])) {
+				$out->inputTitle('PUSH ' . $bits[1]);
+				$vm->push($bits[1]);
+
+			// ========================================
+			// Pop the stack
+			// ========================================
+			} else if ($bits[0] == 'pop') {
+				$val = $vm->pop();
+				$out->inputTitle('POP ' . $val);
 
 			// ========================================
 			// Save the current VM state (Optionally to filename)
@@ -151,7 +198,7 @@
 			// Unknown.
 			// ========================================
 			} else {
-				$out->inputTitle('Unknown Command: ' . $input);
+				$out->inputTitle('Unknown Command: ' . $bits[0]);
 			}
 
 		// ========================================
@@ -161,6 +208,8 @@
 			$out->addStoredInput($input);
 			$out->inputTitle('Stored Input: ' . $input);
 		}
+
+		if ($input != '!' && $input != '!!') { $__LASTINPUT = $input; }
 
 		return true;
 	};
@@ -190,9 +239,10 @@
 	 * @param $loc The current location of the vm
 	 * @param $op The SynacorOP being executed
 	 * @param $data The array of data being passed to the op
+	 * @param $breaking Are we breaking here?
 	 * @uses $out The Challenge UI
 	 */
-	$vmHandlers['trace'] = function ($vm, $loc, $op, $data) use ($out) {
+	$vmHandlers['trace'] = function ($vm, $loc, $op, $data, $breaking) use ($out) {
 		if ($out->tracing()) {
 			if (is_array($data)) {
 				$d = array();
@@ -211,6 +261,7 @@
 			} else { $d = $data; }
 
 			$trace = sprintf("%8d | %6s %s", $loc, $op->name(), $d);
+			if ($breaking) { $trace .= ' [!!]'; }
 			$out->addTrace($trace);
 
 			global $__CLIOPTS;
