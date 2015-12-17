@@ -54,7 +54,7 @@
 			$this->handlers['trace'] = function ($vm, $loc, $op, $data) { };
 
 			// Load the data.
-			$this->load($binaryData);
+			$this->loadbin($binaryData);
 		}
 
 		/**
@@ -62,7 +62,7 @@
 		 *
 		 * @param $binaryData Program data.
 		 */
-		public function load($binaryData) {
+		public function loadbin($binaryData) {
 			// Load the application into memory.
 			$this->data = array_values(unpack('v*', $binaryData));
 

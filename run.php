@@ -80,7 +80,7 @@
 			// ========================================
 			} else if ($bits[0] == 'reset') {
 				$out->inputTitle('RESET');
-				$vm->load($binaryData);
+				$vm->loadbin($binaryData);
 				initStateFromCLI($vm, $out);
 
 			// ========================================
@@ -88,7 +88,7 @@
 			// ========================================
 			} else if ($bits[0] == 'loadbin' && isset($bits[1])) {
 				$out->inputTitle('LOADBIN FROM ' . $bits[1]);
-				$vm->load($bits[1]);
+				$vm->loadbin(file_get_contents($bits[1]));
 
 			// ========================================
 			// Exit from the challenge interface.
