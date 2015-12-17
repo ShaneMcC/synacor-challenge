@@ -28,6 +28,9 @@
 		/** Run return value */
 		private $returnValue = 0;
 
+		/** I/O handlers. */
+		private $handlers = array();
+
 		/**
 		 * Create a new Synacor VM to run the given binary data.
 		 *
@@ -48,6 +51,42 @@
 			// Prepare data structures
 			$this->reg = new SplFixedArray(8);
 			for ($i=0; $i < 8; $i++) { $this->reg[$i] = 0; }
+
+			// Prepare default functions.
+			$this->handlers['output'] = function ($vm, $out) { echo chr($out); };
+			$this->handlers['input'] = function ($vm) { return ord(fread(STDIN, 1)); };
+			$this->handlers['trace'] = function ($vm, $loc, $op, $data) { };
+		}
+
+		/**
+		 * Set the I/O handlers to the given functions.
+		 * Only the functions given are changed, this does not remove any
+		 * functions not passed in the array.
+		 *
+		 * @param $handlers Array of handlers.
+		 */
+		public function setHandlers($handlers) {
+			foreach ($handlers as $type => $handler) {
+				$this->handlers[$type] = $handler;
+			}
+		}
+
+		/**
+		 * Call the output function.
+		 *
+		 * @param $output Output to pass to function.
+		 */
+		function output($output) {
+			$this->handlers['output']($this, $output);
+		}
+
+		/**
+		 * Call the input function.
+		 *
+		 * @param $input Input to pass to function.
+		 */
+		function input() {
+			return $this->handlers['input']($this);
 		}
 
 		/**
@@ -56,23 +95,41 @@
 		 * @return Return code from app (1 or 0)
 		 */
 		public function run() {
-			if ($this->getLocation() != 0) { return -1; }
+			while ($this->step()) { }
 
-			while (true) {
+			return $this->returnValue;
+		}
+
+		/**
+		 * Step through $count calls.
+		 *
+		 * @param $count How far to step.
+		 */
+		public function step($count = 1) {
+			for ($steps = 0; $steps < $count; $steps++) {
 				$loc = $this->getLocation();
 				$op = $this->getNext(1);
-				if ($op === false) { break; }
+				if ($op === false) { return false; }
 				$op = $op[0];
 
 				if (!isset($this->ops[$op])) {
 					$this->haltvm('BAD OP: ' . $op);
+					return false;
 				} else {
 					$data = $this->getNext($this->ops[$op]->args());
-					$this->ops[$op]->run($this, $data);
+					$this->handlers['trace']($this, $loc, $this->ops[$op], $data);
+					$result = $this->ops[$op]->run($this, $data);
+
+					// INPUT can return false to let us hand back to
+					// the display.
+					if ($result === FALSE) {
+						$this->jump($loc);
+						return FALSE;
+					}
 				}
 			}
 
-			return $this->returnValue;
+			return true;
 		}
 
 		/**
@@ -157,15 +214,28 @@
 
 		/**
 		 * Get the register at the given value.
-		 * If value is a non-register address, then the raw value will
-		 * be returned.
 		 *
 		 * @param $reg Register address
 		 * @return Register value.
 		 */
 		public function get($reg) {
-			$result = $this->reg[$reg];
-			return (int)$result;
+			return (int)$this->reg[$reg];
+		}
+
+		/**
+		 * Get the stack.
+		 *
+		 * @return The stack.
+		 */
+		public function getStack() {
+			return $this->stack;
+		}
+
+		/**
+		 * Clear the stack.
+		 */
+		public function clearStack() {
+			return $this->stack = array();
 		}
 
 		/**
@@ -206,6 +276,39 @@
 			return (int)count($this->data);
 		}
 
+		/**
+		 * Save the current state of the VM.
+		 *
+		 * @param $file File to save to (if '' then a name will be generated.)
+		 */
+		public function saveState($file = '') {
+			$state = array();
+			$state['memory'] = $this->data;
+			$state['location'] = $this->location;
+			$state['registers'] = $this->reg;
+			$state['stack'] = $this->stack;
+			$state['return'] = $this->returnValue;
+
+			if (empty($file)) {
+				$file = 'savestate.' . time();
+			}
+			file_put_contents($file, serialize($state));
+		}
+
+		/**
+		 * Load a previous VM state.
+		 *
+		 * @param $file File to load from.
+		 */
+		public function loadState($file) {
+			$state = unserialize(file_get_contents($file));
+
+			$this->data = $state['memory'];
+			$this->location = $state['location'];
+			$this->reg = $state['registers'];
+			$this->stack = $state['stack'];
+			$this->returnValue = $state['return'];
+		}
 
 		/**
 		 * Halt the VM.
