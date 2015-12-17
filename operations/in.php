@@ -9,7 +9,8 @@
 		function run($vm, $data) {
 			list($a) = $data;
 
-			$in = ord(fread(STDIN, 1));
+			$in = $vm->input();
+			if ($in === FALSE) { return FALSE; }
 
 			if ($vm->isRegister($a)) {
 				$vm->asRegister($a);
@@ -20,4 +21,5 @@
 			}
 		}
 		function code() { return 20; }
+		function name() { return 'in'; }
 	}

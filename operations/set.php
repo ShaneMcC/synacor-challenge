@@ -11,4 +11,5 @@
 			$vm->set($a, $b);
 		}
 		function code() { return 1; }
+		function name() { return 'set'; }
 	}

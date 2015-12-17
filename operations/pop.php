@@ -12,4 +12,5 @@
 			$vm->set($a, $v);
 		}
 		function code() { return 3; }
+		function name() { return 'pop'; }
 	}

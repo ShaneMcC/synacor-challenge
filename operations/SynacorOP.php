@@ -3,4 +3,5 @@
 		function args();
 		function run($vm, $data);
 		function code();
+		function name();
 	}

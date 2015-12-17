@@ -11,4 +11,5 @@
 			$vm->jump($a);
 		}
 		function code() { return 17; }
+		function name() { return 'call'; }
 	}

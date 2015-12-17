@@ -9,4 +9,5 @@
 			$vm->jump($v);
 		}
 		function code() { return 18; }
+		function name() { return 'ret'; }
 	}

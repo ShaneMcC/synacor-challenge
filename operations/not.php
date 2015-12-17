@@ -11,4 +11,5 @@
 			$vm->set($a, (~ $b & 0x7FFF));
 		}
 		function code() { return 14; }
+		function name() { return 'not'; }
 	}

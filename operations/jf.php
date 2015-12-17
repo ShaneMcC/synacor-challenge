@@ -13,4 +13,5 @@
 			}
 		}
 		function code() { return 8; }
+		function name() { return 'jf'; }
 	}

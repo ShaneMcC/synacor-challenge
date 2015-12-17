@@ -11,4 +11,5 @@
 			$vm->set($a, $vm->getData($b));
 		}
 		function code() { return 15; }
+		function name() { return 'rmem'; }
 	}

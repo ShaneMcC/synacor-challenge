@@ -7,4 +7,5 @@
 			$vm->haltvm('HALT');
 		}
 		function code() { return 0; }
+		function name() { return 'halt'; }
 	}

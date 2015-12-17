@@ -12,4 +12,5 @@
 			$vm->set($a, $b & $c);
 		}
 		function code() { return 12; }
+		function name() { return 'and'; }
 	}

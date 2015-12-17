@@ -10,4 +10,5 @@
 			$vm->push($a);
 		}
 		function code() { return 2; }
+		function name() { return 'push'; }
 	}

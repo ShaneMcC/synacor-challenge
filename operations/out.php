@@ -6,7 +6,8 @@
 		function run($vm, $data) {
 			list($a) = $data;
 			$vm->decode($a);
-			echo chr($a);
+			$vm->output($a);
 		}
 		function code() { return 19; }
+		function name() { return 'out'; }
 	}

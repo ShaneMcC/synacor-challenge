@@ -13,4 +13,5 @@
 			}
 		}
 		function code() { return 7; }
+		function name() { return 'jt'; }
 	}

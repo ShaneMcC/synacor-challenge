@@ -9,4 +9,5 @@
 			$vm->jump($a);
 		}
 		function code() { return 6; }
+		function name() { return 'jmp'; }
 	}

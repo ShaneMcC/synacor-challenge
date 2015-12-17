@@ -12,4 +12,5 @@
 			$vm->set($a, $b | $c);
 		}
 		function code() { return 13; }
+		function name() { return 'or'; }
 	}

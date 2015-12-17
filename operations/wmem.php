@@ -11,4 +11,5 @@
 			$vm->setData($a, $b);
 		}
 		function code() { return 16; }
+		function name() { return 'wmem'; }
 	}

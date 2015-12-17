@@ -12,4 +12,5 @@
 			$vm->set($a, $b > $c ? '1' : '0');
 		}
 		function code() { return 5; }
+		function name() { return 'gt'; }
 	}

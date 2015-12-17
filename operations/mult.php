@@ -12,4 +12,5 @@
 			$vm->set($a, ($b * $c) % 32768);
 		}
 		function code() { return 10; }
+		function name() { return 'mult'; }
 	}
