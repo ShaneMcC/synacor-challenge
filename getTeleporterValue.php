@@ -28,6 +28,14 @@ DUMP:     6067 |    ret
 */
 
 
+function test($val) {
+	$r1 = 4;
+	$r2 = 1;
+	$r8 = $val;
+	$result = call5483($r1, $r2, $r8);
+	return $result;
+}
+
 /**
  * DUMP:     5483 |    set {R1}, 4
  * DUMP:     5486 |    set {R2}, 1
@@ -94,13 +102,7 @@ function call6048(&$r1, &$r2, &$r8, &$stack) {
 
 
 
-function test($val) {
-	$r1 = 4;
-	$r2 = 1;
-	$r8 = $val;
-	$result = call5483($r1, $r2, $r8);
-	return $result;
-}
+
 
 
 for ($i = 0; $i <= 32768; $i++) {
