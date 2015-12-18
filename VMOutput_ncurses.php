@@ -44,7 +44,7 @@
 
 			$this->panels['trace'] = ncurses_newwin($traceHeight, $traceWidth, $top, $right - $traceWidth);
 			ncurses_wborder($this->panels['trace'], 0, 0, 0, 0, 0, 0, 0, 0);
-			ncurses_mvwaddstr($this->panels['trace'], 0, 2, "[ Call Trace ]");
+			ncurses_mvwaddstr($this->panels['trace'], 0, 2, "[ Logging ]");
 			ncurses_wmove($this->panels['trace'], 2, 2);
 
 			$this->panels['debug'] = ncurses_newwin($debugHeight, $debugWidth, $bottom - $debugHeight, $left);
@@ -158,7 +158,7 @@
 		public function redrawTrace() {
 			ncurses_wclear($this->panels['trace']);
 			ncurses_wborder($this->panels['trace'], 0, 0, 0, 0, 0, 0, 0, 0);
-			ncurses_mvwaddstr($this->panels['trace'], 0, 2, "[ Call Trace ]");
+			ncurses_mvwaddstr($this->panels['trace'], 0, 2, "[ Logging ]");
 
 			$y = $x = 2;
 			ncurses_getmaxyx($this->panels['trace'], $height, $width);
@@ -185,8 +185,9 @@
 			$this->storedInput = $storedInput;
 		}
 
-		public function inputTitle($error) {
-			$this->inputTitle = $error;
+		public function inputTitle($inputTitle) {
+			$this->inputTitle = $inputTitle;
+			$this->addTrace('@' . $inputTitle);
 		}
 
 		public function redrawInput() {
@@ -226,7 +227,7 @@
 			$pressed = ncurses_getch();
 			$result = false;
 
-			if ($pressed == 27) { // Escape Key
+			if ($pressed == 27) { // Escape Key, exit.
 				$result = false;
 			} else if ($pressed == 13) { // Enter Key
 				$in = $this->userInput;
@@ -234,6 +235,7 @@
 				$this->inputTitle = '';
 				$this->redrawInput();
 
+				$this->addTrace('Input: ' . $in);
 				try {
 					$result = $this->handlers['gotInput']($this, $this->vm, $in);
 				} catch (Exception $e) {

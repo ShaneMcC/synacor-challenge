@@ -44,7 +44,7 @@
 			foreach (get_declared_classes() as $class) {
 				if (is_subclass_of($class, 'SynacorOP')) {
 					$c = new $class();
-					$this->ops[$c->code()] = $c;
+					$this->ops[($class == 'Synacor_none') ? 'NONE' : $c->code()] = $c;
 				}
 			}
 
@@ -97,6 +97,15 @@
 		 */
 		public function getHandlers() {
 			return $this->handlers[$type];
+		}
+
+		/**
+		 * Get the known operations.
+		 *
+		 * @return Array of known operations.
+		 */
+		public function getOps() {
+			return $this->ops;
 		}
 
 		/**
@@ -203,10 +212,12 @@
 		 *
 		 * @param $start Where to start.
 		 * @param $end Where to end (if $loc is greater/equal than this, and end is not 0)
+		 * @param $includeNone Include non-ops in dump?
 		 */
-		public function dump($start = 0, $end = 0) {
+		public function dump($start = 0, $end = 0, $includeNone = true) {
 			$current = $this->getLocation();
 			$this->jump($start);
+			if ($end != 0 && $end == $start) { $end++; }
 			while (true) {
 				$loc = $this->getLocation();
 				if ($end != 0 && $loc >= $end) { break; }
@@ -216,8 +227,14 @@
 
 				if (isset($this->ops[$op])) {
 					$data = $this->getNext($this->ops[$op]->args());
-					$this->handlers['dump']($this, $loc, $this->ops[$op], $data);
+				} else if ($includeNone) {
+					$data = array($op);
+					$op = 'NONE';
+				} else {
+					continue;
 				}
+
+				$this->handlers['dump']($this, $loc, $this->ops[$op], $data);
 			}
 			$this->jump($current);
 
@@ -348,6 +365,15 @@
 		 */
 		public function getData($loc) {
 			return (int)$this->data[$loc];
+		}
+
+		/**
+		 * Get the size of memory data.
+		 *
+		 * @return Size of memory data.
+		 */
+		public function getSize() {
+			return count($this->data);
 		}
 
 		/**

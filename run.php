@@ -147,24 +147,57 @@
 			// Get the memory at position X
 			// ========================================
 			} else if ($bits[0] == 'getmem' && isset($bits[1])) {
-				$val = $vm->getData((int)$bits[1]);
-				$out->inputTitle('GETMEM ' . $bits[1] . ': ' . $val);
+				$loc = ($bits[1] == '#') ? $vm->getLocation() : $bits[1];
+				if (is_numeric($loc)) {
+					$val = $vm->getData($loc);
+
+					$ops = $vm->getOps();
+					if (isset($ops[$val])) {
+						$val .= ' (' . $ops[$val]->name() . ')';
+					}
+
+					$out->inputTitle('GETMEM ' . $loc . ': ' . $val);
+				} else {
+					$out->inputTitle('INVALID GETMEM');
+				}
 
 			// ========================================
 			// Dump Memory from X to Y
 			// ========================================
-			} else if ($bits[0] == 'dump' && isset($bits[2])) {
+			} else if (($bits[0] == 'dump' || $bits[0] == 'dumpall')) {
 				$out->traceAll();
-				$vm->dump((int)$bits[1], (int)$bits[2]);
-				$out->inputTitle('DUMP ' . $bits[1] . ': ' . $bits[2]);
+
+				if (!isset($bits[2])) { $bits[1] = $bits[2] = '#'; }
+
+				$start = ($bits[1] == '#') ? $vm->getLocation() : $bits[1];
+				$end = ($bits[2] == '#') ? $vm->getLocation() : $bits[2];
+
+				$out->inputTitle('DUMP ' . $start . ' ' . $end);
+				$out->addTrace('==[ dump ' . $start . ' ' . $end .' ] ==');
+				$vm->dump($start, $end, ($bits[0] == 'dumpall'));
+				$out->addTrace('==[ end dump ] ==========');
 				$out->traceOnOutput();
 
 			// ========================================
 			// Set the memory at position X to Y
 			// ========================================
 			} else if ($bits[0] == 'setmem' && isset($bits[2])) {
-				$vm->setData((int)$bits[1], (int)$bits[2]);
-				$out->inputTitle('SETMEM ' . $bits[1] . ': ' . $bits[2]);
+				$op = $bits[2];
+				if (!is_numeric($bits[2])) {
+					$ops = $vm->getOps();
+					foreach ($ops as $o) {
+						if ($o->name() == $bits[2]) {
+							$op = $o->code();
+						}
+					}
+				}
+				$loc = ($bits[1] == '#') ? $vm->getLocation() : $bits[1];
+				if (is_numeric($loc)) {
+					$vm->setData($loc, $op);
+					$out->inputTitle('SETMEM ' . $loc . ': ' . $op);
+				} else {
+					$out->inputTitle('INVALID SETMEM');
+				}
 
 			// ========================================
 			// Set register X to Y
@@ -242,9 +275,10 @@
 				$helpdata[] = '  !unbreak <#>                      - Remove a breakpoint at <#>';
 				$helpdata[] = '  !nobreak                          - Remove all breakpoints';
 				$helpdata[] = '  !continue                         - Execute at a breakpoint (!trace, !step, !run will not pass a breakpoint)';
-				$helpdata[] = '  !getmem <#>                       - Get the memory at <#> (Output is above input box)';
-				$helpdata[] = '  !dump <#1> <#2>                   - Dump the instructions between <#1> and <#2> to the trace window';
-				$helpdata[] = '  !setmem <#1> <#2>                 - Set memory location <#1> to be the raw value <#2>';
+				$helpdata[] = '  !getmem <#>                       - Get the memory at <#> (<#1> can be "#" for the current location)';
+				$helpdata[] = '  !dump <#1> <#2>                   - Dump the instructions between <#1> and <#2> to the trace window (<#1> or <#2> can be "#" for the current location)';
+				$helpdata[] = '  !dumpall <#1> <#2>                - Same as !dump, but also include non-instructional data.';
+				$helpdata[] = '  !setmem <#1> <#2>                 - Set memory location <#1> to be the raw value <#2> (<#2> can also be the name of an operation, and <#1> can be "#" for the current location)';
 				$helpdata[] = '  !setreg <#1> <#2>                 - Set Register <#1> to be the raw value <#2>';
 				$helpdata[] = '  !push <#>                         - Push the raw value <#> to the stack.';
 				$helpdata[] = '  !pop                              - Pop the stack';
