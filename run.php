@@ -350,7 +350,23 @@
 					if ($vm->isRegister($da)) {
 						$vm->asRegister($da);
 						$da++;
-						$s .= '{R'.$da.':'.$vm->get($da - 1).'}';
+						$val = $vm->get($da - 1);
+
+						if ($op->name() == 'out') {
+							if ($val == '10') {
+								$val .= ':"\n"';
+							} else {
+								$val .= ':"'.chr($val).'"';
+							}
+						}
+
+						$s .= '{R'.$da.':'.$val.'}';
+					} else if ($op->name() == 'out') {
+						if ($da == '10') {
+							$s .= '{'.$da.':"\n"}';
+						} else {
+							$s .= '{'.$da.':'.chr($da).'}';
+						}
 					} else {
 						$s .= $da;
 					}
