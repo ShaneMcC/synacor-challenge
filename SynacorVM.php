@@ -109,6 +109,22 @@
 		}
 
 		/**
+		 * Get the op code for the op of the given name.
+		 *
+		 * @param $name Name of op
+		 * @return Code.
+		 */
+		public function getOpCode($name) {
+			foreach ($this->ops as $o) {
+				if ($o->name() == $name) {
+					return $o->code();
+				}
+			}
+
+			return $this->ops['NONE'];
+		}
+
+		/**
 		 * Call the output function.
 		 *
 		 * @param $output Output to pass to function.
@@ -275,6 +291,24 @@
 			} else {
 				$this->haltvm('Not a register.');
 			}
+		}
+
+		public function toRegister(&$input) {
+			if (isset($this->reg[$input])) {
+				$input = $input + 32768;
+			} else {
+				$this->haltvm('Not a register.');
+			}
+		}
+
+		public function getRegLocation($input) {
+			$this->toRegister($input);
+			return $input;
+		}
+
+		public function getRegID($input) {
+			$this->asRegister($input);
+			return $input;
 		}
 
 		public function isRegister($input) {

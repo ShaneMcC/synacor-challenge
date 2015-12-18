@@ -153,6 +153,11 @@
 				$this->redrawAll();
 				$this->refreshAll();
 			}
+
+			global $__CLIOPTS;
+			if (isset($__CLIOPTS['trace'])) {
+				file_put_contents($__CLIOPTS['trace'], $output."\n", FILE_APPEND | LOCK_EX);
+			}
 		}
 
 		public function redrawTrace() {

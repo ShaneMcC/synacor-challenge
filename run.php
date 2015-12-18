@@ -167,7 +167,8 @@
 			} else if (($bits[0] == 'dump' || $bits[0] == 'dumpall')) {
 				$out->traceAll();
 
-				if (!isset($bits[2])) { $bits[1] = $bits[2] = '#'; }
+				if (!isset($bits[1]) && !isset($bits[2])) { $bits[1] = $bits[2] = '#'; }
+				if (!isset($bits[2])) { $bits[2] = $bits[1]; }
 
 				$start = ($bits[1] == '#') ? $vm->getLocation() : $bits[1];
 				$end = ($bits[2] == '#') ? $vm->getLocation() : $bits[2];
@@ -182,19 +183,20 @@
 			// Set the memory at position X to Y
 			// ========================================
 			} else if ($bits[0] == 'setmem' && isset($bits[2])) {
-				$op = $bits[2];
+				$val = $bits[2];
 				if (!is_numeric($bits[2])) {
-					$ops = $vm->getOps();
-					foreach ($ops as $o) {
-						if ($o->name() == $bits[2]) {
-							$op = $o->code();
-						}
-					}
+					$op = $vm->getOpCode($bits[2]);
+					if ($op->name() != 'NONE') { $val = $op; }
 				}
+				if (preg_match('#R([1-8])#i', $bits[2], $m)) {
+					$val = ($m[1] - 1);
+					$vm->toRegister($val);
+				}
+
 				$loc = ($bits[1] == '#') ? $vm->getLocation() : $bits[1];
 				if (is_numeric($loc)) {
-					$vm->setData($loc, $op);
-					$out->inputTitle('SETMEM ' . $loc . ': ' . $op);
+					$vm->setData($loc, $val);
+					$out->inputTitle('SETMEM ' . $loc . ': ' . $val);
 				} else {
 					$out->inputTitle('INVALID SETMEM');
 				}
@@ -252,6 +254,27 @@
 				$out->inputTitle('LOADED INPUT FROM ' . $bits[1]);
 
 			// ========================================
+			// Fix parts of memory to advance.
+			// ========================================
+			} else if ($bits[0] == 'fix' && isset($bits[1])) {
+				if ($bits[1] == 'teleporter') {
+					$out->inputTitle('Fixing Teleporter..');
+
+					$r1 = $vm->getRegLocation(1 -1);
+					$r2 = $vm->getRegLocation(2 -1);
+
+					$vm->set(7, 1);
+					$vm->setData(5489, $vm->getOpCode('set'));
+					$vm->setData(5490, $r2);
+					$vm->setData(5491, 1);
+					$vm->setData(5492, $vm->getOpCode('set'));
+					$vm->setData(5493, $r1);
+					$vm->setData(5494, 0);
+
+					$out->inputTitle('Fixed Teleporter!');
+				}
+
+			// ========================================
 			// Help
 			// ========================================
 			} else if ($bits[0] == 'help') {
@@ -276,8 +299,8 @@
 				$helpdata[] = '  !nobreak                          - Remove all breakpoints';
 				$helpdata[] = '  !continue                         - Execute at a breakpoint (!trace, !step, !run will not pass a breakpoint)';
 				$helpdata[] = '  !getmem <#>                       - Get the memory at <#> (<#1> can be "#" for the current location)';
-				$helpdata[] = '  !dump <#1> <#2>                   - Dump the instructions between <#1> and <#2> to the trace window (<#1> or <#2> can be "#" for the current location)';
-				$helpdata[] = '  !dumpall <#1> <#2>                - Same as !dump, but also include non-instructional data.';
+				$helpdata[] = '  !dump <#1> [<#2>]                 - Dump the instructions between <#1> and <#2> to the trace window (<#1> or <#2> can be "#" for the current location)';
+				$helpdata[] = '  !dumpall <#1> [<#2>]              - Same as !dump, but also include non-instructional data.';
 				$helpdata[] = '  !setmem <#1> <#2>                 - Set memory location <#1> to be the raw value <#2> (<#2> can also be the name of an operation, and <#1> can be "#" for the current location)';
 				$helpdata[] = '  !setreg <#1> <#2>                 - Set Register <#1> to be the raw value <#2>';
 				$helpdata[] = '  !push <#>                         - Push the raw value <#> to the stack.';
@@ -378,11 +401,6 @@
 			$trace = sprintf("%8d | %6s %s", $loc, $op->name(), $d);
 			if ($breaking) { $trace .= ' [!!]'; }
 			$out->addTrace($trace);
-
-			global $__CLIOPTS;
-			if (isset($__CLIOPTS['trace'])) {
-				file_put_contents($__CLIOPTS['trace'], $trace."\n", FILE_APPEND | LOCK_EX);
-			}
 		}
 	};
 
@@ -414,11 +432,6 @@
 
 		$trace = sprintf("DUMP: %8d | %6s %s", $loc, $op->name(), $d);
 		$out->addTrace($trace);
-
-		global $__CLIOPTS;
-		if (isset($__CLIOPTS['trace'])) {
-			file_put_contents($__CLIOPTS['trace'], $trace."\n", FILE_APPEND | LOCK_EX);
-		}
 	};
 
 	/**
