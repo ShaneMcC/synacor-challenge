@@ -27,12 +27,20 @@ DUMP:     6065 |   call 6027
 DUMP:     6067 |    ret
 */
 
+function ackermann($x, $y, $r8) {
+	global $__cache;
+	if (isset($__cache[$x][$y])) { return $__cache[$x][$y]; }
 
-function test($val) {
-	$r1 = 4;
-	$r2 = 1;
-	$r8 = $val;
-	$result = call5483($r1, $r2, $r8);
+	$result = 0;
+	if ($x == 0) { // call6027
+		$result = ($y + 1) % 32768;
+	} else if ($y == 0) { // call6035
+		$result = ackermann($x - 1, $r8, $r8);
+	} else { // call6048
+		$result = ackermann($x - 1, ackermann($x, $y - 1, $r8), $r8);
+	}
+
+	$__cache[$x][$y] = $result;
 	return $result;
 }
 
@@ -44,6 +52,7 @@ function test($val) {
  * DUMP:     5495 |     jf {R2}, 5579
  */
 function call5483($r1 = 4, $r2 = 1, $r8 = 0) {
+	echo '5483: [1: ' . $r1 . ' | 2: ' . $r2 . ' | 8: ' . $r8 . ']', "\n";
 	$stack = array();
 	call6027($r1, $r2, $r8, $stack);
 	$r2 = ($r1 === 6) ? 1 : 0;
@@ -56,6 +65,8 @@ function call5483($r1 = 4, $r2 = 1, $r8 = 0) {
  * DUMP:     6034 |    ret
 */
 function call6027(&$r1, &$r2, &$r8, &$stack) {
+	echo '6027: [1: ' . $r1 . ' | 2: ' . $r2 . ' | 8: ' . $r8 . ']', "\n";
+
 	if ($r1 != 0) {
 		call6035($r1, $r2, $r8, $stack);
 	} else {
@@ -71,6 +82,8 @@ function call6027(&$r1, &$r2, &$r8, &$stack) {
  * DUMP:     6047 |    ret
 */
 function call6035(&$r1, &$r2, &$r8, &$stack) {
+	echo '6035: [1: ' . $r1 . ' | 2: ' . $r2 . ' | 8: ' . $r8 . ']', "\n";
+
 	if ($r2 != 0) {
 		call6048($r1, $r2, $r8, $stack);
 	} else {
@@ -90,6 +103,8 @@ function call6035(&$r1, &$r2, &$r8, &$stack) {
  * DUMP:     6067 |    ret
 */
 function call6048(&$r1, &$r2, &$r8, &$stack) {
+	echo '6048: [1: ' . $r1 . ' | 2: ' . $r2 . ' | 8: ' . $r8 . ']', "\n";
+
 	array_push($stack, $r1);
 	$r2 = ($r2 + 32767)  % 32768;
 	call6027($r1, $r2, $r8, $stack);
@@ -99,17 +114,12 @@ function call6048(&$r1, &$r2, &$r8, &$stack) {
 	call6027($r1, $r2, $r8, $stack);
 }
 
-
-
-
-
-
-
 for ($i = 0; $i <= 32768; $i++) {
 	echo $i, ": ";
-	if (test($i)) {
-		echo 'Incorrect.', "\n";
-	} else {
+	unset($__cache);
+	if (ackermann(4,1,$i) === 6) {
 		die('Got value: ' . $i . "\n");
+	} else {
+		echo 'Incorrect!', "\n";
 	}
 }
