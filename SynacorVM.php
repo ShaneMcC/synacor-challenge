@@ -109,15 +109,15 @@
 		}
 
 		/**
-		 * Get the op code for the op of the given name.
+		 * Get the op for the op of the given name.
 		 *
 		 * @param $name Name of op
-		 * @return Code.
+		 * @return Op.
 		 */
-		public function getOpCode($name) {
+		public function getOpByName($name) {
 			foreach ($this->ops as $o) {
 				if ($o->name() == $name) {
-					return $o->code();
+					return $o;
 				}
 			}
 
