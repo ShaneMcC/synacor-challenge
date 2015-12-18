@@ -6,8 +6,8 @@
 		private $userInput = '';
 		private $handlers = array();
 		private $storedInput = array();
-		private $tracing = true;
-		private $traceOnOutput = true;
+		protected $tracing = true;
+		protected $traceOnOutput = true;
 
 		function __construct($vm) {
 			// Init Display

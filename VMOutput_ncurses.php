@@ -7,6 +7,8 @@
 		private $outputData = array('');
 		private $traceData = array();
 		private $inputTitle = '';
+		private $lastBottom = 0;
+		private $lastRight = 0;
 
 		function __construct($vm) {
 			parent::__construct($vm);
@@ -14,17 +16,30 @@
 			// Init Display
 			$ths->nc = ncurses_init();
 			$this->refreshAll();
-			$this->init();
-			$this->refreshAll();
+			$this->update();
+		}
+
+		private function checkSize() {
+			$bottom = $left = 0;
+			ncurses_getmaxyx(STDSCR, $bottom, $right);
+			if ($bottom != $this->lastBottom || $right != $this->lastRight) {
+				foreach ($panels as $p) {
+					ncurses_delwin($p);
+				}
+				$panels = array();
+				$this->init();
+			}
 		}
 
 		private function init() {
 			// Get Sizes
 			$top = $right = $bottom = $left = 0;
 			ncurses_getmaxyx(STDSCR, $bottom, $right);
+			$this->lastBottom = $bottom;
+			$this->lastRight = $right;
 
 			// Panel Layouts
-			$traceWidth = 55;
+			$traceWidth = min($right/2, 55);
 			$traceHeight = $bottom;
 
 			$debugWidth = $right - $traceWidth;
@@ -66,6 +81,7 @@
 		public function update() {
 			parent::update();
 
+			$this->checkSize();
 			$this->redrawAll();
 			$this->refreshAll();
 		}
@@ -103,25 +119,13 @@
 			ncurses_wborder($this->panels['output'], 0, 0, 0, 0, 0, 0, 0, 0);
 			ncurses_mvwaddstr($this->panels['output'], 0, 2, "[ Output ]");
 
-			$y = $x = 2;
-
-			ncurses_getmaxyx($this->panels['output'], $height, $width);
-
-			$arrayStart = 0 - $height + 4;
-			foreach (array_slice($this->outputData, $arrayStart) as $line) {
-				ncurses_wmove($this->panels['output'], $y, $x);
-				ncurses_waddstr($this->panels['output'], $line);
-				$y++;
-			}
-
-			$this->refreshAll();
+			$this->drawTextToWindow($this->panels['output'], $this->outputData);
 		}
 
 		public function addTrace($output) {
 			$this->traceData[] = $output;
 			if (!$this->traceOnOutput) {
-				$this->redrawAll();
-				$this->refreshAll();
+				$this->update();
 			}
 
 			global $__CLIOPTS;
@@ -135,17 +139,27 @@
 			ncurses_wborder($this->panels['trace'], 0, 0, 0, 0, 0, 0, 0, 0);
 			ncurses_mvwaddstr($this->panels['trace'], 0, 2, "[ Logging ]");
 
-			$y = $x = 2;
-			ncurses_getmaxyx($this->panels['trace'], $height, $width);
-			$arrayStart = 0 - $height + 4;
+			$this->drawTextToWindow($this->panels['trace'], $this->traceData);
+		}
 
-			foreach (array_slice($this->traceData, $arrayStart) as $line) {
-				ncurses_wmove($this->panels['trace'], $y, $x);
-				ncurses_waddstr($this->panels['trace'], $line);
+		public function drawTextToWindow($panel, $text) {
+			$y = 1;
+			$x = 2;
+			ncurses_getmaxyx($panel, $height, $width);
+			$arrayStart = 0 - $height + 2;
+
+			$out = array();
+			foreach (array_slice($text, $arrayStart) as $line) {
+				$line = wordwrap($line, $width - 4, "\n", true);
+				foreach (explode("\n", $line) as $l) {
+					$out[] = $l;
+				}
+			}
+			foreach (array_slice($out, $arrayStart) as $line) {
+				ncurses_wmove($panel, $y, $x);
+				ncurses_waddstr($panel, $line);
 				$y++;
 			}
-
-			$this->refreshAll();
 		}
 
 		public function inputTitle($inputTitle) {
