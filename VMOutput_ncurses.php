@@ -1,24 +1,18 @@
 <?php
 
-	class VMOutput_ncurses {
+	class VMOutput_ncurses extends VMOutput {
 
 		private $nc = null;
 		private $panels = array();
-		private $vm = null;
-		private $userInput = '';
-		private $inputTitle = '';
-		private $handlers = array();
-		private $storedInput = array();
-
 		private $outputData = array('');
 		private $traceData = array();
-		private $tracing = true;
-		private $traceOnOutput = true;
+		private $inputTitle = '';
 
 		function __construct($vm) {
+			parent::__construct($vm);
+
 			// Init Display
 			$ths->nc = ncurses_init();
-			$this->vm = $vm;
 			$this->refreshAll();
 			$this->init();
 			$this->refreshAll();
@@ -62,19 +56,18 @@
 			$this->redrawAll();
 		}
 
-		public function setHandlers($outHandlers) {
-			$this->handlers = $outHandlers;
-		}
-
-		public function getHandlers() {
-			return $this->handlers;
-		}
-
 		public function redrawAll() {
 			$this->redrawDebug();
 			$this->redrawOutput();
 			$this->redrawInput();
 			$this->redrawTrace();
+		}
+
+		public function update() {
+			parent::update();
+
+			$this->redrawAll();
+			$this->refreshAll();
 		}
 
 		public function refreshAll() {
@@ -124,29 +117,6 @@
 			$this->refreshAll();
 		}
 
-
-		public function traceOn() {
-			$this->tracing = true;
-		}
-
-		public function traceOff() {
-			$this->tracing = false;
-		}
-
-		public function traceAll() {
-			$this->traceOn();
-			$this->traceOnOutput = false;
-		}
-
-		public function traceOnOutput() {
-			$this->traceOn();
-			$this->traceOnOutput = true;
-		}
-
-		public function tracing() {
-			return $this->tracing;
-		}
-
 		public function addTrace($output) {
 			$this->traceData[] = $output;
 			if (!$this->traceOnOutput) {
@@ -178,18 +148,6 @@
 			$this->refreshAll();
 		}
 
-		public function addStoredInput($input) {
-			$this->storedInput[] = $input;
-		}
-
-		public function getStoredInput() {
-			return $this->storedInput;
-		}
-
-		public function setStoredInput($storedInput) {
-			$this->storedInput = $storedInput;
-		}
-
 		public function inputTitle($inputTitle) {
 			$this->inputTitle = $inputTitle;
 			$this->addTrace('@' . $inputTitle);
@@ -198,7 +156,7 @@
 		public function redrawInput() {
 			ncurses_wclear($this->panels['input']);
 			ncurses_wborder($this->panels['input'], 0, 0, 0, 0, 0, 0, 0, 0);
-			ncurses_mvwaddstr($this->panels['input'], 1, 1, ' > ' . $this->userInput);
+			ncurses_mvwaddstr($this->panels['input'], 1, 1, ' > ' . $this->getUserInput());
 
 			if (!empty($this->inputTitle)) {
 				ncurses_mvwaddstr($this->panels['input'], 0, 2, "[ " . $this->inputTitle . " ]");
@@ -209,67 +167,25 @@
 			ncurses_wclear($this->panels['debug']);
 			ncurses_wborder($this->panels['debug'], 0, 0, 0, 0, 0, 0, 0, 0);
 
-			ncurses_mvwaddstr($this->panels['debug'], 2, 2, "R1: [ " . $this->vm->get(0) . " ]");
-			ncurses_mvwaddstr($this->panels['debug'], 3, 2, "R2: [ " . $this->vm->get(1) . " ]");
-			ncurses_mvwaddstr($this->panels['debug'], 4, 2, "R3: [ " . $this->vm->get(2) . " ]");
+			ncurses_mvwaddstr($this->panels['debug'], 2, 2, "R1: [ " . $this->getVM()->get(0) . " ]");
+			ncurses_mvwaddstr($this->panels['debug'], 3, 2, "R2: [ " . $this->getVM()->get(1) . " ]");
+			ncurses_mvwaddstr($this->panels['debug'], 4, 2, "R3: [ " . $this->getVM()->get(2) . " ]");
 
-			ncurses_mvwaddstr($this->panels['debug'], 2, 27, "R4: [ " . $this->vm->get(3) . " ]");
-			ncurses_mvwaddstr($this->panels['debug'], 3, 27, "R5: [ " . $this->vm->get(4) . " ]");
-			ncurses_mvwaddstr($this->panels['debug'], 4, 27, "R6: [ " . $this->vm->get(5) . " ]");
+			ncurses_mvwaddstr($this->panels['debug'], 2, 27, "R4: [ " . $this->getVM()->get(3) . " ]");
+			ncurses_mvwaddstr($this->panels['debug'], 3, 27, "R5: [ " . $this->getVM()->get(4) . " ]");
+			ncurses_mvwaddstr($this->panels['debug'], 4, 27, "R6: [ " . $this->getVM()->get(5) . " ]");
 
-			ncurses_mvwaddstr($this->panels['debug'], 2, 52, "R7: [ " . $this->vm->get(6) . " ]");
-			ncurses_mvwaddstr($this->panels['debug'], 3, 52, "R8: [ " . $this->vm->get(7) . " ]");
+			ncurses_mvwaddstr($this->panels['debug'], 2, 52, "R7: [ " . $this->getVM()->get(6) . " ]");
+			ncurses_mvwaddstr($this->panels['debug'], 3, 52, "R8: [ " . $this->getVM()->get(7) . " ]");
 
-			ncurses_mvwaddstr($this->panels['debug'], 6, 2, "Location: [ " . $this->vm->getLocation() . " ]");
-			ncurses_mvwaddstr($this->panels['debug'], 6, 27, "Stack: [ " . implode(' ', $this->vm->getStack()) . " ]");
+			ncurses_mvwaddstr($this->panels['debug'], 6, 2, "Location: [ " . $this->getVM()->getLocation() . " ]");
+			ncurses_mvwaddstr($this->panels['debug'], 6, 27, "Stack: [ " . implode(' ', $this->getVM()->getStack()) . " ]");
 
 			ncurses_mvwaddstr($this->panels['debug'], 0, 2, "[ Debug ]");
 		}
 
-		public function waitForUser() {
-			$this->redrawAll();
-			$this->refreshAll();
-			$pressed = ncurses_getch();
-			$result = false;
-
-			if ($pressed == 27) { // Escape Key, exit.
-				$result = false;
-			} else if ($pressed == 13) { // Enter Key
-				$in = $this->userInput;
-				$this->userInput = '';
-				$this->inputTitle = '';
-				$this->redrawInput();
-
-				$this->addTrace('Input: ' . $in);
-				try {
-					$result = $this->handlers['gotInput']($this, $this->vm, $in);
-				} catch (Exception $e) {
-					$this->outputData[] = '==========';
-					$this->outputData[] = 'Caught Exception: ' . $e->getMessage();
-					$this->outputData[] = '';
-					foreach (explode("\n", $e->getTraceAsString()) as $t) {
-						$this->outputData[] = $t;
-					}
-					$this->outputData[] = '==========';
-					$this->outputData[] = '';
-					$result = true;
-				}
-			} else if ($pressed == 263) { // Backspace
-				$this->userInput = substr($this->userInput, 0, -1);
-				$result = true;
-			} else if ($pressed >= 32 && $pressed <= 126) {
-				$this->userInput .= chr($pressed);
-				$result = true;
-			} else {
-				echo 'UNKNOWN: ', $pressed, "\n";
-				$result = true;
-			}
-
-			return $result;
-		}
-
-		public function loop(){
-			while ($this->waitForUser()) { }
-			$this->end();
+		public function getInput() {
+			$this->redrawInput();
+			return ncurses_getch();
 		}
 	}

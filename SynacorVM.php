@@ -193,7 +193,7 @@
 			for ($steps = 0; $steps < $count; $steps++) {
 				$loc = $this->getLocation();
 				$op = $this->getNext(1);
-				if ($op === false) { return false; }
+				if ($op[0] === FALSE) { return false; }
 				$op = $op[0];
 
 				if (!isset($this->ops[$op])) {
@@ -238,7 +238,7 @@
 				$loc = $this->getLocation();
 				if ($end != 0 && $loc >= $end) { break; }
 				$op = $this->getNext(1);
-				if ($op === false) { break; }
+				if ($op[0] === FALSE) { break; }
 				$op = $op[0];
 
 				if (isset($this->ops[$op])) {

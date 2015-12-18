@@ -1,7 +1,16 @@
 <?php
 	require_once(dirname(__FILE__) . '/SynacorVM.php');
+	require_once(dirname(__FILE__) . '/VMOutput.php');
 	require_once(dirname(__FILE__) . '/VMOutput_ncurses.php');
 
+	/**
+	 * Get path to file from given input.
+	 * This ensures we only load files from within our directory
+	 *
+	 * @param $name File name
+	 * @param $dir Subdirectory file resides in.
+	 * @return File path.
+	 */
 	function getFilepath($name, $dir) {
 		$name = str_replace('/', '', $name);
 		$path = dirname(__FILE__) . '/' . $dir . '/' . $name;
@@ -10,7 +19,7 @@
 
 	// Parse command line.
 	try {
-		$__CLIOPTS = @getopt("hr", array('help', 'file:', 'state:', 'input:', 'log:', 'trace:', 'run', 'autorun'));
+		$__CLIOPTS = @getopt("hr", array('help', 'file:', 'state:', 'input:', 'log:', 'trace:', 'run', 'autorun', 'nocurses'));
 		if (isset($__CLIOPTS['h']) || isset($__CLIOPTS['help'])) {
 			echo 'Usage: ', $_SERVER['argv'][0], ' [options]', "\n";
 			echo '', "\n";
@@ -23,6 +32,7 @@
 			echo '      --trace <file>       Log all trace to ./logs/<file>', "\n";
 			echo '  -r, --run                Start executing immediately.', "\n";
 			echo '      --autorun            Enable autorun on input.', "\n";
+			echo '      --nocurses           Run without ncurses frontend.', "\n";
 			die();
 		}
 	} catch (Exception $e) { /* Do nothing. */ }
@@ -35,8 +45,9 @@
 	$vm = new SynacorVM($binaryData);
 
 	// Create an output for the given vm.
-	$out = new VMOutput_ncurses($vm);
+	$out = (isset($__CLIOPTS['nocurses'])) ? new VMOutput($vm) : new VMOutput_ncurses($vm);
 
+	// Enable Autorun if required.
 	$autorun = isset($__CLIOPTS['autorun']);
 
 	/**
@@ -249,8 +260,7 @@
 			} else if ($bits[0] == 'load' && isset($bits[1])) {
 				$out->inputTitle('LOAD FROM ' . getFilepath($bits[1], 'states'));
 				$vm->loadState(getFilepath($bits[1], 'states'));
-				$out->redrawAll();
-				$out->refreshAll();
+				$out->update();
 				$out->inputTitle('LOADED FROM ' . getFilepath($bits[1], 'states'));
 
 			// ========================================
@@ -276,6 +286,22 @@
 					$h = $out->getHandlers();
 					$h['gotInput']($out, $vm, '!run');
 				}
+
+			// ========================================
+			// Fix parts of memory to advance.
+			// ========================================
+			} else if ($bits[0] == 'show') {
+
+				$out->addTrace("R1: [ " . $vm->get(0) . " ]");
+				$out->addTrace("R2: [ " . $vm->get(1) . " ]");
+				$out->addTrace("R3: [ " . $vm->get(2) . " ]");
+				$out->addTrace("R4: [ " . $vm->get(3) . " ]");
+				$out->addTrace("R5: [ " . $vm->get(4) . " ]");
+				$out->addTrace("R6: [ " . $vm->get(5) . " ]");
+				$out->addTrace("R7: [ " . $vm->get(6) . " ]");
+				$out->addTrace("R8: [ " . $vm->get(7) . " ]");
+				$out->addTrace("Location: [ " . $vm->getLocation() . " ]");
+				$out->addTrace("Stack: [ " . implode(' ', $vm->getStack()) . " ]");
 
 			// ========================================
 			// Fix parts of memory to advance.
@@ -334,6 +360,7 @@
 				$helpdata[] = '  !load <filename>                  - Load the VM State from <filename>';
 				$helpdata[] = '  !in <filename>                    - PreLoad the input buffer from <filename>';
 				$helpdata[] = '  !send <text>                      - Add <text> to the intput buffer.';
+				$helpdata[] = '  !show                             - Show registers, stack and current location. (Useful for non-curses output).';
 				$helpdata[] = '';
 				$helpdata[] = '';
 				$helpdata[] = 'By default the trace window only updates when there is output to one of the other windows (otherwise it gets to be quite slow).';
@@ -487,18 +514,24 @@
 		}
 
 		$out->setStoredInput($storedInput);
-		$out->addTrace('Input: ' . ($return === FALSE ? 'FALSE' : $return));
+		// $out->addTrace('Input: ' . ($return === FALSE ? 'FALSE' : $return));
 
 		// Log to the output window aswell.
 		if ($return !== FALSE) { $out->addOutput($return); }
 
-		$out->refreshAll();
+		$out->update();
 		return $return;
 	};
 
 	// Set the VM handlers.
 	$vm->setHandlers($vmHandlers);
 
+	/**
+	 * Load CLI state to the given vm and output.
+	 *
+	 * @param $vm VM we are loading state for
+	 * @param $out Output we are loading state for
+	 */
 	function initStateFromCLI($vm, $out) {
 		global $__CLIOPTS;
 
@@ -511,9 +544,10 @@
 			$outHandlers['gotInput']($out, $vm, '!in ' . $__CLIOPTS['input']);
 		}
 	}
-
+	// Load state and commands that were passed to the CLI.
 	initStateFromCLI($vm, $out);
 
+	// If we want to start running immediately, do so.
 	if (isset($__CLIOPTS['r']) || isset($__CLIOPTS['run'])) {
 		$outHandlers['gotInput']($out, $vm, '!run');
 	}
