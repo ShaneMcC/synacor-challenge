@@ -1,0 +1,11 @@
+!in 01_moveToCoins
+!in 02_takeCoins
+!in 03_useCoins 
+!in 04_moveToTeleport
+!run
+!fix teleporter
+!in 05_moveToOrb
+!in 06_openVault
+!in 07_enterVault
+!run
+
