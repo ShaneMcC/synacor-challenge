@@ -117,9 +117,10 @@ function call6048(&$r1, &$r2, &$r8, &$stack) {
 for ($i = 0; $i <= 32768; $i++) {
 	echo $i, ": ";
 	unset($__cache);
-	if (ackermann(4,1,$i) === 6) {
+	$val = ackermann(4,1,$i);
+	if ($val === 6) {
 		die('Got value: ' . $i . "\n");
 	} else {
-		echo 'Incorrect!', "\n";
+		echo 'Incorrect! (', $val, ')', "\n";
 	}
 }
