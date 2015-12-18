@@ -156,7 +156,7 @@
 
 			global $__CLIOPTS;
 			if (isset($__CLIOPTS['trace'])) {
-				file_put_contents($__CLIOPTS['trace'], $output."\n", FILE_APPEND | LOCK_EX);
+				file_put_contents(getFilepath($__CLIOPTS['trace'], 'logs'), $output."\n", FILE_APPEND | LOCK_EX);
 			}
 		}
 

@@ -2,6 +2,11 @@
 	require_once(dirname(__FILE__) . '/SynacorVM.php');
 	require_once(dirname(__FILE__) . '/VMOutput_ncurses.php');
 
+	function getFilepath($name, $dir) {
+		$name = str_replace('/', '', $name);
+		$path = dirname(__FILE__) . '/' . $dir . '/' . $name;
+		return str_replace(getcwd(), '.', $path);
+	}
 
 	// Parse command line.
 	try {
@@ -11,19 +16,19 @@
 			echo '', "\n";
 			echo 'Valid options', "\n";
 			echo '  -h, --help               Show this help output', "\n";
-			echo '      --file <file>        Use <file> for the binary file rather than "challenge.bin"', "\n";
-			echo '      --state <file>       Preload State from <file>', "\n";
-			echo '      --input <file>       Preload Input from <file>', "\n";
-			echo '      --log <file>         Log all output to <file>', "\n";
-			echo '      --trace <file>       Log all trace to <file>', "\n";
+			echo '      --file <file>        Use ./bin/<file> for the binary file rather than "./bin/challenge.bin"', "\n";
+			echo '      --state <file>       Preload State from ./states/<file>', "\n";
+			echo '      --input <file>       Preload Input from ./inputs/<file>', "\n";
+			echo '      --log <file>         Log all output to ./logs/<file>', "\n";
+			echo '      --trace <file>       Log all trace to ./logs/<file>', "\n";
 			echo '  -r, --run                Auto run', "\n";
 			die();
 		}
 	} catch (Exception $e) { /* Do nothing. */ }
 
 	// Load in the binary for the challenge
-	$binaryFile = isset($__CLIOPTS['file']) && file_exists($__CLIOPTS['file']) ? $__CLIOPTS['file'] : dirname(__FILE__) . '/challenge.bin';
-	$binaryData = file_get_contents($binaryFile);
+	$binaryFile = isset($__CLIOPTS['file']) && file_exists(getFilepath($__CLIOPTS['file'], 'bin')) ? getFilepath($__CLIOPTS['file'], 'bin') : getFilepath('challenge.bin', 'bin');
+	$binaryData = @file_get_contents($binaryFile);
 
 	// Start a VM
 	$vm = new SynacorVM($binaryData);
@@ -87,8 +92,8 @@
 			// Load the given binary into the app.
 			// ========================================
 			} else if ($bits[0] == 'loadbin' && isset($bits[1])) {
-				$out->inputTitle('LOADBIN FROM ' . $bits[1]);
-				$vm->loadbin(file_get_contents($bits[1]));
+				$out->inputTitle('LOADBIN FROM ./bin/' . $bits[1]);
+				$vm->loadbin(getFilepath($bits[1], 'bin'));
 
 			// ========================================
 			// Exit from the challenge interface.
@@ -227,26 +232,26 @@
 			// ========================================
 			} else if ($bits[0] == 'save') {
 				$file = isset($bits[1]) ? $bits[1] : 'savestate.' . time();
-				$out->inputTitle('SAVE TO ' . $file);
-				$vm->saveState($file);
-				$out->inputTitle('SAVED TO ' . $file);
+				$out->inputTitle('SAVE TO ' . getFilepath($file, 'states'));
+				$vm->saveState(getFilepath($file, 'states'));
+				$out->inputTitle('SAVED TO ' . getFilepath($file, 'states'));
 
 			// ========================================
 			// Load the VM State from the given file.
 			// ========================================
 			} else if ($bits[0] == 'load' && isset($bits[1])) {
-				$out->inputTitle('LOAD FROM ' . $bits[1]);
-				$vm->loadState($bits[1]);
+				$out->inputTitle('LOAD FROM ' . getFilepath($bits[1], 'states'));
+				$vm->loadState(getFilepath($bits[1], 'states'));
 				$out->redrawAll();
 				$out->refreshAll();
-				$out->inputTitle('LOADED FROM ' . $bits[1]);
+				$out->inputTitle('LOADED FROM ' . getFilepath($bits[1], 'states'));
 
 			// ========================================
 			// Preload input.
 			// ========================================
 			} else if ($bits[0] == 'in' && isset($bits[1])) {
 				$out->inputTitle('LOAD INPUT FROM ' . $bits[1]);
-				$in = file($bits[1], FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+				$in = file(getFilepath($bits[1], 'inputs'), FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
 				foreach ($in as $i) {
 					$out->addStoredInput($i);
 					$out->addTrace('Loaded input: ' . $i);
@@ -263,7 +268,7 @@
 					$r1 = $vm->getRegLocation(1 -1);
 					$r2 = $vm->getRegLocation(2 -1);
 
-					$vm->set(7, 1);
+					$vm->set(7, 25734);
 					$vm->setData(5489, $vm->getOpCode('set'));
 					$vm->setData(5490, $r2);
 					$vm->setData(5491, 1);
@@ -350,7 +355,7 @@
 
 		global $__CLIOPTS;
 		if (isset($__CLIOPTS['log'])) {
-			file_put_contents($__CLIOPTS['log'], chr($output), FILE_APPEND | LOCK_EX);
+			file_put_contents(getFilepath($__CLIOPTS['log'], 'logs'), chr($output), FILE_APPEND | LOCK_EX);
 		}
 	};
 
@@ -473,11 +478,11 @@
 		global $__CLIOPTS;
 
 		$outHandlers = $out->getHandlers();
-		if (isset($__CLIOPTS['state']) && file_exists($__CLIOPTS['state'])) {
+		if (isset($__CLIOPTS['state'])) {
 			$outHandlers['gotInput']($out, $vm, '!load ' . $__CLIOPTS['state']);
 		}
 
-		if (isset($__CLIOPTS['input']) && file_exists($__CLIOPTS['input'])) {
+		if (isset($__CLIOPTS['input'])) {
 			$outHandlers['gotInput']($out, $vm, '!in ' . $__CLIOPTS['input']);
 		}
 	}
