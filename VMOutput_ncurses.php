@@ -1,15 +1,30 @@
 <?php
 
+	/**
+	 * NCurses based VMOutput
+	 */
 	class VMOutput_ncurses extends VMOutput {
 
+		/** NCurses pointer. */
 		private $nc = null;
+		/** Array of ncurses windows we have created. */
 		private $panels = array();
+		/** Output Data buffer. */
 		private $outputData = array('');
+		/** Trace Data buffer. */
 		private $traceData = array();
+		/** Input Bar Title. */
 		private $inputTitle = '';
+		/** Last height of the display. */
 		private $lastBottom = 0;
+		/** Last Width of the display/ */
 		private $lastRight = 0;
 
+		/**
+		 * Create a new NCurses based VMOutput.
+		 *
+		 * @param $vm VM to display.
+		 */
 		function __construct($vm) {
 			parent::__construct($vm);
 
@@ -19,6 +34,10 @@
 			$this->update();
 		}
 
+		/**
+		 * Check if the display size has changed, and destroy/recreate our
+		 * panels if it has.
+		 */
 		private function checkSize() {
 			$bottom = $left = 0;
 			ncurses_getmaxyx(STDSCR, $bottom, $right);
@@ -31,6 +50,9 @@
 			}
 		}
 
+		/**
+		 * Initiate our NCurses panels.
+		 */
 		private function init() {
 			// Get Sizes
 			$top = $right = $bottom = $left = 0;
@@ -71,6 +93,9 @@
 			$this->redrawAll();
 		}
 
+		/**
+		 * Redraw all our panels to show updated content.
+		 */
 		public function redrawAll() {
 			$this->redrawDebug();
 			$this->redrawOutput();
@@ -78,6 +103,12 @@
 			$this->redrawTrace();
 		}
 
+		/**
+		 * Update the display.
+		 * - Check size
+		 * - Redraw Content
+		 * - Refresh display
+		 */
 		public function update() {
 			parent::update();
 
@@ -86,15 +117,30 @@
 			$this->refreshAll();
 		}
 
+		/**
+		 * Refresh All Panels.
+		 */
 		public function refreshAll() {
 			foreach ($this->panels as $p) { ncurses_wrefresh($p); }
 			ncurses_refresh();
 		}
 
+		/**
+		 * End the output, clean up ncurses.
+		 */
 		public function end() {
 			ncurses_end();
 		}
 
+		/**
+		 * Add some output to be displayed in the output panel.
+		 * Output can be an array of lines to add, or a single character.
+		 * Integers passed will be converted to characters.
+		 * Some subclasses may buffer this output, some may just echo it
+		 * immediately.
+		 *
+		 * @param $output Output to display.
+		 */
 		public function addOutput($output) {
 			if (is_array($output)) {
 				foreach ($output as $out) {
@@ -114,6 +160,9 @@
 			$this->refreshAll();
 		}
 
+		/**
+		 * Redraw the output panel.
+		 */
 		public function redrawOutput() {
 			ncurses_wclear($this->panels['output']);
 			ncurses_wborder($this->panels['output'], 0, 0, 0, 0, 0, 0, 0, 0);
@@ -122,6 +171,11 @@
 			$this->drawTextToWindow($this->panels['output'], $this->outputData);
 		}
 
+		/**
+		 * Add some output to the trace panel.
+		 *
+		 * @param $output Line of output to add to trace.
+		 */
 		public function addTrace($output) {
 			$this->traceData[] = $output;
 			if (!$this->traceOnOutput) {
@@ -134,6 +188,9 @@
 			}
 		}
 
+		/**
+		 * Redraw the trace panel.
+		 */
 		public function redrawTrace() {
 			ncurses_wclear($this->panels['trace']);
 			ncurses_wborder($this->panels['trace'], 0, 0, 0, 0, 0, 0, 0, 0);
@@ -142,6 +199,14 @@
 			$this->drawTextToWindow($this->panels['trace'], $this->traceData);
 		}
 
+		/**
+		 * Draw an array of text to a given panel, with line wraps.
+		 * This makes sure we only draw text within the panel borders, not over
+		 * the top of them.
+		 *
+		 * @param $panel Panel we are drawing text on.
+		 * @param Array of text to draw.
+		 */
 		public function drawTextToWindow($panel, $text) {
 			$y = 1;
 			$x = 2;
@@ -162,21 +227,33 @@
 			}
 		}
 
+		/**
+		 * Set the title of the input bar.
+		 *
+		 * @param $inputTitle New title.
+		 */
 		public function inputTitle($inputTitle) {
 			$this->inputTitle = $inputTitle;
 			$this->addTrace('@' . $inputTitle);
 		}
 
+		/**
+		 * Redraw the input bar.
+		 */
 		public function redrawInput() {
 			ncurses_wclear($this->panels['input']);
 			ncurses_wborder($this->panels['input'], 0, 0, 0, 0, 0, 0, 0, 0);
-			ncurses_mvwaddstr($this->panels['input'], 1, 1, ' > ' . $this->getUserInput());
 
 			if (!empty($this->inputTitle)) {
 				ncurses_mvwaddstr($this->panels['input'], 0, 2, "[ " . $this->inputTitle . " ]");
 			}
+
+			$this->drawTextToWindow($this->panels['input'], array('> ' . $this->getUserInput()));
 		}
 
+		/**
+		 * Redraw the debug Panel.
+		 */
 		public function redrawDebug() {
 			ncurses_wclear($this->panels['debug']);
 			ncurses_wborder($this->panels['debug'], 0, 0, 0, 0, 0, 0, 0, 0);
@@ -198,6 +275,11 @@
 			ncurses_mvwaddstr($this->panels['debug'], 0, 2, "[ Debug ]");
 		}
 
+		/**
+		 * Get a single character of input from the terminal.
+		 *
+		 * @return A single character of input.
+		 */
 		public function getInput() {
 			$this->redrawInput();
 			return ncurses_getch();
