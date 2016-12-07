@@ -45,6 +45,9 @@
 	// Start a VM
 	$vm = new SynacorVM($binaryData);
 
+	// Force nocurses if ncurses not installed.
+	if (!function_exists('ncurses_init')) { $__CLIOPTS['nocurses'] = true; }
+
 	// Create an output for the given vm.
 	$out = (isset($__CLIOPTS['nocurses'])) ? new VMOutput($vm) : new VMOutput_ncurses($vm);
 
