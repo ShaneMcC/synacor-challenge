@@ -29,7 +29,7 @@
 			parent::__construct($vm);
 
 			// Init Display
-			$ths->nc = ncurses_init();
+			ncurses_init();
 			$this->refreshAll();
 			$this->update();
 		}
@@ -42,10 +42,10 @@
 			$bottom = $left = 0;
 			ncurses_getmaxyx(STDSCR, $bottom, $right);
 			if ($bottom != $this->lastBottom || $right != $this->lastRight) {
-				foreach ($panels as $p) {
+				foreach ($this->panels as $p) {
 					ncurses_delwin($p);
 				}
-				$panels = array();
+				$this->panels = array();
 				$this->init();
 			}
 		}
@@ -57,6 +57,7 @@
 			// Get Sizes
 			$top = $right = $bottom = $left = 0;
 			ncurses_getmaxyx(STDSCR, $bottom, $right);
+
 			$this->lastBottom = $bottom;
 			$this->lastRight = $right;
 
@@ -121,7 +122,7 @@
 		 * Refresh All Panels.
 		 */
 		public function refreshAll() {
-			foreach ($this->panels as $p) { ncurses_wrefresh($p); }
+			foreach ($this->panels as $name => $p) { ncurses_wrefresh($p); }
 			ncurses_refresh();
 		}
 

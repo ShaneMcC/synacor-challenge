@@ -1,5 +1,4 @@
 <?php
-
 	/**
 	 * Class to deal with linking the console with the a VM.
 	 */

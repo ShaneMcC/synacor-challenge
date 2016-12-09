@@ -45,7 +45,15 @@
 	// Start a VM
 	$vm = new SynacorVM($binaryData);
 
-	// Force nocurses if ncurses not installed.
+	// Load our ncurses emulator if ncurses lib is not installed.
+	if (!function_exists('ncurses_init')) {
+		// Emulator only works on Linux, so don't bother trying on windows.
+		if (strtoupper(substr(PHP_OS, 0, 3)) !== 'WIN') {
+			require_once(dirname(__FILE__) . '/noncurses.php');
+		}
+	}
+
+	// Do we have ncurses, or our ncurses emulator? If not, disable curses.
 	if (!function_exists('ncurses_init')) { $__CLIOPTS['nocurses'] = true; }
 
 	// Create an output for the given vm.
@@ -53,6 +61,11 @@
 
 	// Enable Autorun if required.
 	$autorun = isset($__CLIOPTS['autorun']);
+
+	// Handle SIGINT.
+	if (function_exists("pcntl_signal")) {
+		pcntl_signal(SIGINT, function() use ($out) { $out->end(); die(); });
+	}
 
 	/**
 	 * Handler for user input from the Challenge UI.
