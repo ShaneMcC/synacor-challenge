@@ -1,6 +1,4 @@
 <?php
-	declare(ticks = 1);
-
 	/**
 	 * Implement required ncurses functions for VMOutput_ncurses when not present.
 	 *
@@ -39,6 +37,9 @@
 		/** Our current buffer. */
 		protected $buffer = [];
 
+		/** Our last buffer. */
+		protected $lastBuffer = [];
+
 		/**
 		 * Create a new NonCursesWindow Window
 		 *
@@ -61,21 +62,28 @@
 			for ($y = 0; $y < max($this->lines, count($this->buffer)); $y++) {
 				if ($y >= $this->lines) {
 					unset($this->buffer[$y]);
+					unset($this->lastBuffer[$y]);
 					continue;
 				}
 
 				if ($overwrite || !isset($this->buffer[$y])) {
 					$this->buffer[$y] = [];
+					$this->lastBuffer[$y] = [];
 				}
 
 				for ($x = 0; $x < max($this->cols, count($this->buffer[$y])); $x++) {
 					if ($x >= $this->cols) {
 						unset($this->buffer[$y][$x]);
+						unset($this->lastBuffer[$y][$x]);
 						continue;
 					}
 
 					if ($overwrite || !isset($this->buffer[$y][$x])) {
 						$this->buffer[$y][$x] = $character;
+					}
+
+					if (!isset($this->lastBuffer[$y][$x])) {
+						$this->lastBuffer[$y][$x] = NULL;
 					}
 				}
 			}
@@ -90,8 +98,6 @@
 		private function getBufferChar($x, $y) {
 			if (isset($this->buffer[$y][$x])) {
 				return $this->buffer[$y][$x];
-			} else {
-				// throw new NonCursesException('Unknown buffer char: (' . $x . ', ' . $y . ')');
 			}
 		}
 
@@ -193,11 +199,16 @@
 			// Draw the window
 			for ($line = $top; $line < $bottom; $line++) {
 				for ($col = $left; $col < $right; $col++) {
-					$output = $clear ? ' ' : $this->getBufferChar($col - $left, $line - $top);
+					$thisCol = $col - $left;
+					$thisLine = $line - $top;
+					$output = $clear ? ' ' : $this->getBufferChar($thisCol, $thisLine);
 
 					if ($this->parent == null) {
-						NonCursesScreen::get()->moveCursor($line, $col);
-						echo $output;
+						if ($this->lastBuffer[$thisLine][$thisCol] != $this->buffer[$thisLine][$thisCol]) {
+							NonCursesScreen::get()->moveCursor($line, $col);
+							echo $output;
+							$this->lastBuffer[$thisLine][$thisCol] = $this->buffer[$thisLine][$thisCol];
+						}
 					} else {
 						// TODO: This probably shouldn't need to be so horrible
 						//       Need to go through all the code though to make
@@ -705,7 +716,6 @@
 	 * @return Character from keyboard as an int
 	 */
 	function ncurses_getch() {
-		declare(ticks = 1);
 		while (true) {
 			usleep(1000);
 			$in = fread(STDIN, 10);

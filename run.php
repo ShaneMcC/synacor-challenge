@@ -62,9 +62,13 @@
 	// Enable Autorun if required.
 	$autorun = isset($__CLIOPTS['autorun']);
 
-	// Handle SIGINT.
+	// Handle SIGINT/SIGTERM.
 	if (function_exists("pcntl_signal")) {
 		pcntl_signal(SIGINT, function() use ($out) { $out->end(); die(); });
+		pcntl_signal(SIGTERM, function() use ($out) { $out->end(); die(); });
+		if (function_exists("pcntl_async_signals")) {
+			pcntl_async_signals(true);
+		}
 	}
 
 	/**
