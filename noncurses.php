@@ -40,6 +40,18 @@
 		/** Our last buffer. */
 		protected $lastBuffer = [];
 
+		/** Colours used for drawing debugging. */
+		protected $debugColours = ["\033[91m", "\033[92m", "\033[93m", "\033[94m", "\033[95m", "\033[96m"];
+
+		/** Last colour used for drawing debugging. */
+		protected $debugColour = 0;
+
+		/* Enable render debugging? */
+		protected $renderDebug = FALSE;
+
+		/* Enable render debugging of blanks? */
+		protected $renderDebugBlank = FALSE;
+
 		/**
 		 * Create a new NonCursesWindow Window
 		 *
@@ -55,48 +67,30 @@
 		}
 
 		function resetBuffer($overwrite = true, $character = ' ') {
-			if ($overwrite) {
-				$this->buffer = [];
-			}
+			$this->buffer = new SplFixedArray($this->lines);
+			$this->lastBuffer = new SplFixedArray($this->lines);
 
-			for ($y = 0; $y < max($this->lines, count($this->buffer)); $y++) {
-				if ($y >= $this->lines) {
-					unset($this->buffer[$y]);
-					unset($this->lastBuffer[$y]);
-					continue;
-				}
+			for ($y = 0; $y < $this->lines; $y++) {
+				$this->buffer[$y] = new SplFixedArray($this->cols);
+				$this->lastBuffer[$y] = new SplFixedArray($this->cols);
 
-				if ($overwrite || !isset($this->buffer[$y])) {
-					$this->buffer[$y] = [];
-					$this->lastBuffer[$y] = [];
-				}
-
-				for ($x = 0; $x < max($this->cols, count($this->buffer[$y])); $x++) {
-					if ($x >= $this->cols) {
-						unset($this->buffer[$y][$x]);
-						unset($this->lastBuffer[$y][$x]);
-						continue;
-					}
-
-					if ($overwrite || !isset($this->buffer[$y][$x])) {
-						$this->buffer[$y][$x] = $character;
-					}
-
-					if (!isset($this->lastBuffer[$y][$x])) {
-						$this->lastBuffer[$y][$x] = NULL;
-					}
+				for ($x = 0; $x < $this->cols; $x++) {
+					$this->buffer[$y][$x] = $character;
+					$this->lastBuffer[$y][$x] = NULL;
 				}
 			}
+
+			return;
 		}
 
 		private function setBufferChar($x, $y, $char) {
-			if (isset($this->buffer[$y][$x])) {
+			if ($x < $this->cols && $y < $this->lines) {
 				$this->buffer[$y][$x] = $char;
 			}
 		}
 
 		private function getBufferChar($x, $y) {
-			if (isset($this->buffer[$y][$x])) {
+			if ($x < $this->cols && $y < $this->lines) {
 				return $this->buffer[$y][$x];
 			}
 		}
@@ -196,6 +190,8 @@
 			if ($this->destroyed) { return; }
 			list($top, $left, $bottom, $right) = $this->getBounds();
 
+			if ($this->renderDebug) { $this->debugColour = ($this->debugColour + 1) % count($this->debugColours); }
+
 			// Draw the window
 			for ($line = $top; $line < $bottom; $line++) {
 				for ($col = $left; $col < $right; $col++) {
@@ -206,6 +202,10 @@
 					if ($this->parent == null) {
 						if ($this->lastBuffer[$thisLine][$thisCol] != $this->buffer[$thisLine][$thisCol]) {
 							NonCursesScreen::get()->moveCursor($line, $col);
+							if ($this->renderDebug) {
+								if ($output == ' ' && $this->renderDebugBlank) { $output = '█'; }
+								echo $this->debugColours[$this->debugColour];
+							}
 							echo $output;
 							$this->lastBuffer[$thisLine][$thisCol] = $this->buffer[$thisLine][$thisCol];
 						}
@@ -410,6 +410,7 @@
 			$this->wrapOff();
 			$this->stty = exec('/bin/stty -g');
 			exec('/bin/stty min 0 time 0');
+			echo "\033[39m";
 		}
 
 		/**
