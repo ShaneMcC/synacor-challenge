@@ -40,6 +40,9 @@
 		/** Our last buffer. */
 		protected $lastBuffer = [];
 
+		/** DrawQueue. */
+		protected $drawQueue = [];
+
 		/** Colours used for drawing debugging. */
 		protected $debugColours = ["\033[91m", "\033[92m", "\033[93m", "\033[94m", "\033[95m", "\033[96m"];
 
@@ -51,6 +54,9 @@
 
 		/* Enable render debugging of blanks? */
 		protected $renderDebugBlank = FALSE;
+
+		/* Use queue-based drawing rather than full-screen drawing? */
+		protected $useDrawQueue = TRUE;
 
 		/**
 		 * Create a new NonCursesWindow Window
@@ -67,6 +73,7 @@
 		}
 
 		function resetBuffer($overwrite = true, $character = ' ') {
+			$this->drawQueue = [];
 			$this->buffer = new SplFixedArray($this->lines);
 			$this->lastBuffer = new SplFixedArray($this->lines);
 
@@ -86,6 +93,10 @@
 		private function setBufferChar($x, $y, $char) {
 			if ($x < $this->cols && $y < $this->lines) {
 				$this->buffer[$y][$x] = $char;
+
+				if (isset($this->lastBuffer[$y][$x]) && $this->lastBuffer[$y][$x] != $char) {
+					$this->drawQueue[$y][$x] = $char;
+				}
 			}
 		}
 
@@ -187,6 +198,62 @@
 		 * @param $clear Clear the screen instead of drawing?
 		 */
 		public function draw($clear = false) {
+			if ($this->useDrawQueue) {
+				$this->drawQueue($clear);
+			} else {
+				$this->drawAll($clear);
+			}
+		}
+
+		/**
+		 * Draw the window using queue-based drawing rather than full-screen
+		 * drawing.
+		 *
+		 * @param $clear Clear the screen instead of drawing?
+		 */
+		private function drawQueue($clear = false) {
+			if ($this->destroyed) { return; }
+
+			if ($this->renderDebug) { $this->debugColour = ($this->debugColour + 1) % count($this->debugColours); }
+
+			if ($clear) {
+				$this->drawQueue = [];
+				for ($y = 0; $y < $this->lines; $y++) {
+					for ($x = 0; $x < $this->cols; $x++) {
+						if ($this->lastBuffer[$y][$x] != ' ' && $this->lastBuffer[$y][$x] != ' ') {
+							$this->drawQueue[$y][$x] = ' ';
+						}
+					}
+				}
+				return;
+			}
+
+			foreach ($this->drawQueue as $line => $dql) {
+				foreach ($dql as $col => $char) {
+					if ($this->parent == null) {
+						NonCursesScreen::get()->moveCursor($line, $col);
+						if ($this->renderDebug) {
+							echo $this->debugColours[$this->debugColour];
+						}
+						echo ($char == ' ' && $this->renderDebugBlank) ? '█' : $char;
+						$this->lastBuffer[$line][$col] = $char;
+					} else {
+						$this->parent->setBufferChar($this->getRelX() + $col, $this->getRelY() + $line, $char);
+					}
+				}
+			}
+
+			$this->drawQueue = [];
+			return;
+		}
+
+
+		/**
+		 * Redraw the whole screen.
+		 *
+		 * @param $clear Clear the screen instead of drawing?
+		 */
+		private function drawAll($clear = false) {
 			if ($this->destroyed) { return; }
 			list($top, $left, $bottom, $right) = $this->getBounds();
 
@@ -210,13 +277,12 @@
 							$this->lastBuffer[$thisLine][$thisCol] = $this->buffer[$thisLine][$thisCol];
 						}
 					} else {
-						// TODO: This probably shouldn't need to be so horrible
-						//       Need to go through all the code though to make
-						//       sure everything is treated as 1-index not 0-index :(
-						$this->parent->setBufferChar($col - $this->parent->getRelX(), $line - $this->parent->getRelY(), $output);
+						$this->parent->setBufferChar($col, $line, $output);
 					}
 				}
 			}
+
+			$this->drawQueue = [];
 			return;
 		}
 
@@ -336,7 +402,7 @@
 			// Look for stty.
 			if (!file_exists('/bin/stty')) { throw new NonCursesException('Unable to locate stty.'); }
 
-			$this->topleft = [1, 1];
+			$this->topleft = [0, 0];
 		}
 
 		/**
@@ -437,10 +503,12 @@
 		/**
 		 * Move the drawing cursor position.
 		 *
+		 * We are 0-based, but the terminal is 1-based, so + 1s to everything.
+		 *
 		 * @param $line Line to move to.
 		 * @param $col Column to move to.
 		 */
-		public function moveCursor($line, $col) { echo "\033[" . $line . ';' . $col . 'H'; }
+		public function moveCursor($line, $col) { echo "\033[" . ($line + 1) . ';' . ($col + 1). 'H'; }
 
 		/**
 		 * Move the cursor up.
