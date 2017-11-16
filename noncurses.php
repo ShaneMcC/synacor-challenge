@@ -36,6 +36,9 @@
 		/** Have we been destroyed? */
 		protected $destroyed = false;
 
+		/** Our current buffer. */
+		protected $buffer = [];
+
 		/**
 		 * Create a new NonCursesWindow Window
 		 *
@@ -46,6 +49,50 @@
 				throw new NonCursesException('Parent window must be non-null');
 			}
 			$this->parent = $parent;
+
+			$this->resetBuffer();
+		}
+
+		private function resetBuffer($overwrite = true, $character = ' ') {
+			if ($overwrite) {
+				$this->buffer = [];
+			}
+
+			for ($y = 0; $y < max($this->lines, count($this->buffer)); $y++) {
+				if ($y >= $this->lines) {
+					unset($this->buffer[$y]);
+					continue;
+				}
+
+				if ($overwrite || !isset($this->buffer[$y])) {
+					$this->buffer[$y] = [];
+				}
+
+				for ($x = 0; $x < max($this->cols, count($this->buffer[$y])); $x++) {
+					if ($x >= $this->cols) {
+						unset($this->buffer[$y][$x]);
+						continue;
+					}
+
+					if ($overwrite || !isset($this->buffer[$y][$x])) {
+						$this->buffer[$y][$x] = $character;
+					}
+				}
+			}
+		}
+
+		private function setBufferChar($x, $y, $char) {
+			if (isset($this->buffer[$y][$x])) {
+				$this->buffer[$y][$x] = $char;
+			}
+		}
+
+		private function getBufferChar($x, $y) {
+			if (isset($this->buffer[$y][$x])) {
+				return $this->buffer[$y][$x];
+			} else {
+				// throw new NonCursesException('Unknown buffer char: (' . $x . ', ' . $y . ')');
+			}
 		}
 
 		/**
@@ -56,10 +103,10 @@
 		}
 
 		/** Set how many columns wide this window is. */
-		public function setCols($cols) { $this->cols = $cols; }
+		public function setCols($cols) { $this->cols = $cols; $this->resetBuffer(false); }
 
 		/** Set how many lines tall this window is. */
-		public function setLines($lines) { $this->lines = $lines; }
+		public function setLines($lines) { $this->lines = $lines; $this->resetBuffer(false); }
 
 		/** Get how many columns wide this window is. */
 		public function getCols() { return $this->cols; }
@@ -120,28 +167,37 @@
 		 */
 		public function addString($line, $x = null, $y = null) {
 			if ($this->destroyed) { return; }
-			list($top, $left, $bottom, $right) = $this->getBounds();
 
 			if ($x === null) { $x = $this->getCursorX(); }
 			if ($y === null) { $y = $this->getCursorY(); }
 
-			NonCursesScreen::get()->moveCursor($top + $y, $left + $x);
-			echo $line;
+			for ($i = 0; $i < strlen($line); $i++) {
+				if (!isset($this->buffer[$y][$x + $i])) { continue; }
 
-			// TODO: Make sure we don't exceed our bounds
-			// TODO: Ensure that our local cursor position is updated after drawing.
-			// TODO: This should update the internal buffer not the live screen (see NonCursesWindow::draw())
+				$this->setBufferChar($x + $i, $y, $line[$i]);
+
+				$this->setCursorX(min(count($this->buffer[$y]), $x + $i + 1));
+				$this->setCursorY($y);
+			}
 		}
 
 		/**
 		 * Draw this window on the screen.
+		 *
+		 * @param $clear Clear the screen instead of drawing?
 		 */
-		public function draw() {
+		public function draw($clear = false) {
 			if ($this->destroyed) { return; }
 
-			// TODO: Draw some window content?
-			// TODO: Other actions should update an internal buffer, and this
-			//       should then apply it to the screen in 1 quick burst.
+			list($top, $left, $bottom, $right) = $this->getBounds();
+
+			// Draw the window
+			for ($line = $top; $line < $bottom; $line++) {
+				NonCursesScreen::get()->moveCursor($line, $left);
+				for ($col = $left; $col < $right; $col++) {
+					echo $clear ? ' ' : $this->getBufferChar($col - $left, $line - $top);
+				}
+			}
 			return;
 		}
 
@@ -150,18 +206,9 @@
 		 */
 		public function clear() {
 			if ($this->destroyed) { return; }
-			list($top, $left, $bottom, $right) = $this->getBounds();
-
-			// Draw the window
-			for ($line = $top; $line < $bottom; $line++) {
-				NonCursesScreen::get()->moveCursor($line, $left);
-				for ($col = $left; $col < $right; $col++) {
-					echo ' ';
-				}
-			}
-
-			// Move cursor back to topleft.
-			NonCursesScreen::get()->moveCursor(0, 0);
+			$this->draw(true);
+			$this->setCursorX(0);
+			$this->setCursorY(0);
 		}
 
 		/**
@@ -190,36 +237,36 @@
 			$b_br_corner = ($b_br_corner == 0 ? ACS_LRCORNER : $b_br_corner);
 
 			// Get the bounds for this window
-			list($top, $left, $bottom, $right) = $this->getBounds();
+			list($top, $left, $bottom, $right) = [0, 0, $this->lines, $this->cols];
 
 			// Draw the border
 			for ($line = $top; $line < $bottom; $line++) {
-				NonCursesScreen::get()->moveCursor($line, $left);
 				for ($col = $left; $col < $right; $col++) {
-					if ($col == $left && $line == $top ) { echo $b_tl_corner; }
-					else if ($col == $right - 1 && $line == $top ) { echo $b_tr_corner; }
-					else if ($col == $left && $line == $bottom - 1 ) { echo $b_bl_corner; }
-					else if ($col == $right - 1 && $line == $bottom - 1 ) { echo $b_br_corner; }
-					else if ($col == $left) { echo $b_left; }
-					else if ($col == $right - 1) { echo $b_right; }
-					else if ($line == $top) { echo $b_top; }
-					else if ($line == $bottom - 1) { echo $b_bottom; }
+					$char = NULL;
+
+					if ($col == $left && $line == $top ) { $char = $b_tl_corner; }
+					else if ($col == $right - 1 && $line == $top ) { $char = $b_tr_corner; }
+					else if ($col == $left && $line == $bottom - 1 ) { $char = $b_bl_corner; }
+					else if ($col == $right - 1 && $line == $bottom - 1 ) { $char = $b_br_corner; }
+					else if ($col == $left) { $char = $b_left; }
+					else if ($col == $right - 1) { $char = $b_right; }
+					else if ($line == $top) { $char = $b_top; }
+					else if ($line == $bottom - 1) { $char = $b_bottom; }
+
+					if ($char != NULL) {
+						$this->setBufferChar($col, $line, $char);
+					}
 
 					// Skip to right for middle-rows
 					if ($col == $left && $line != $top && $line != $bottom - 1) {
 						// $right - 2 makes sure that the for loop is hit.
 						$col = $right - 2;
-						// Move to the correct position on the window.
-						NonCursesScreen::get()->moveCursor($line, $right - 1);
 					}
 				}
 			}
 
-			// Move cursor back to topleft (TODO: Don't do this.)
-			NonCursesScreen::get()->moveCursor(0, 0);
-
-			// TODO: Ensure that our local cursor position is updated after drawing.
-			// TODO: This should update the internal buffer not the live screen (see NonCursesWindow::draw())
+			$this->setCursorX(0);
+			$this->setCursorY(0);
 		}
 	}
 
