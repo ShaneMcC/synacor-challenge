@@ -53,7 +53,7 @@
 			$this->resetBuffer();
 		}
 
-		private function resetBuffer($overwrite = true, $character = ' ') {
+		function resetBuffer($overwrite = true, $character = ' ') {
 			if ($overwrite) {
 				$this->buffer = [];
 			}
@@ -188,14 +188,22 @@
 		 */
 		public function draw($clear = false) {
 			if ($this->destroyed) { return; }
-
 			list($top, $left, $bottom, $right) = $this->getBounds();
 
 			// Draw the window
 			for ($line = $top; $line < $bottom; $line++) {
-				NonCursesScreen::get()->moveCursor($line, $left);
 				for ($col = $left; $col < $right; $col++) {
-					echo $clear ? ' ' : $this->getBufferChar($col - $left, $line - $top);
+					$output = $clear ? ' ' : $this->getBufferChar($col - $left, $line - $top);
+
+					if ($this->parent == null) {
+						NonCursesScreen::get()->moveCursor($line, $col);
+						echo $output;
+					} else {
+						// TODO: This probably shouldn't need to be so horrible
+						//       Need to go through all the code though to make
+						//       sure everything is treated as 1-index not 0-index :(
+						$this->parent->setBufferChar($col - $this->parent->getRelX(), $line - $this->parent->getRelY(), $output);
+					}
 				}
 			}
 			return;
@@ -206,6 +214,7 @@
 		 */
 		public function clear() {
 			if ($this->destroyed) { return; }
+			$this->resetBuffer(true);
 			$this->draw(true);
 			$this->setCursorX(0);
 			$this->setCursorY(0);
@@ -341,10 +350,26 @@
 		}
 
 		/** Get how many columns wide this screen is. */
-		public function getCols() { return $this->tput('cols'); }
+		public function getCols() {
+			$result = $this->tput('cols');
+			if ($result != $this->cols) {
+				$this->cols = $result;
+				$this->resetBuffer(false);
+			}
+
+			return $result;
+		}
 
 		/** Get how many lines tall this window is. */
-		public function getLines() { return $this->tput('lines'); }
+		public function getLines() {
+			$result = $this->tput('lines');
+			if ($result != $this->lines) {
+				$this->lines = $result;
+				$this->resetBuffer(false);
+			}
+
+			return $result;
+		}
 
 		/** Get our absolute X position on the screen. */
 		public function getAbsX() { return $this->topleft[0]; }
