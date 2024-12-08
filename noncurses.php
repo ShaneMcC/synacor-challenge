@@ -95,7 +95,7 @@
 			if ($x < $this->cols && $y < $this->lines) {
 				$this->buffer[$y][$x] = $char;
 
-				if (isset($this->lastBuffer[$y][$x]) && $this->lastBuffer[$y][$x] != $char) {
+				if (!isset($this->lastBuffer[$y][$x]) || $this->lastBuffer[$y][$x] != $char) {
 					$this->drawQueue[$y][$x] = $char;
 				}
 			}
